@@ -30,6 +30,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Stage } from "./Stage";
+import { AssetEditor } from "./AssetEditor";
 import { useAudio } from "./audio";
 import type { State, Config } from "./types";
 import "./style.css";
@@ -185,6 +186,17 @@ function App() {
         });
       setNotice("Đã mời thêm 12 khách vào tiệc");
     });
+  const addCrowd = () =>
+    run(async () => {
+      for (let i = 0; i < 30; i++)
+        await api("/demo/events", {
+          id: crypto.randomUUID(),
+          type: "join",
+          user_id: "crowd-" + i,
+          name: names[i % names.length] + " " + (i + 1),
+        });
+      setNotice("Đã mời 30 khách vào tiệc");
+    });
   const copy = () =>
     run(async () => {
       await navigator.clipboard.writeText(location.origin + "/stage");
@@ -263,6 +275,13 @@ function App() {
             <Radio size={19} />
             Nhật ký sự kiện
           </button>
+          <button
+            className={tab === "visuals" ? "active" : ""}
+            onClick={() => setTab("visuals")}
+          >
+            <Flower2 size={19} />
+            Hình ảnh & nhân vật
+          </button>
         </nav>
         <div className="sidebar-bottom">
           <div className="small-flower">✧</div>
@@ -280,13 +299,15 @@ function App() {
           <div className="breadcrumb">
             Không gian làm việc <ChevronRight size={14} />
             <b>
-              {tab === "studio"
-                ? "Phòng tiệc"
-                : tab === "settings"
-                  ? "Cấu hình tiệc"
-                  : tab === "sound"
-                    ? "MC & âm thanh"
-                    : "Nhật ký"}
+              {tab === "visuals"
+                ? "Hình ảnh & nhân vật"
+                : tab === "studio"
+                  ? "Phòng tiệc"
+                  : tab === "settings"
+                    ? "Cấu hình tiệc"
+                    : tab === "sound"
+                      ? "MC & âm thanh"
+                      : "Nhật ký"}
             </b>
           </div>
           <div className="header-right">
@@ -302,13 +323,15 @@ function App() {
             <div>
               <div className="eyebrow">LET LOVE GO LIVE</div>
               <h1>
-                {tab === "studio"
-                  ? "Một tiệc cưới, ngàn lời chúc."
-                  : tab === "settings"
-                    ? "Thiết kế ngày vui."
-                    : tab === "sound"
-                      ? "Thanh âm hạnh phúc."
-                      : "Từng khoảnh khắc đáng nhớ."}
+                {tab === "visuals"
+                  ? "Diện mạo của ngày chung đôi."
+                  : tab === "studio"
+                    ? "Một tiệc cưới, ngàn lời chúc."
+                    : tab === "settings"
+                      ? "Thiết kế ngày vui."
+                      : tab === "sound"
+                        ? "Thanh âm hạnh phúc."
+                        : "Từng khoảnh khắc đáng nhớ."}
               </h1>
               <p>
                 Sân khấu của bạn đã sẵn sàng. Cùng tạo nên một buổi tiệc thật
@@ -651,6 +674,19 @@ function App() {
                     Mời 12 khách
                   </button>
                 </div>
+                <div className="demo-crowd">
+                  <button
+                    className="button outline"
+                    disabled={!authed || state.mode !== "demo"}
+                    onClick={addCrowd}
+                  >
+                    Mời 30 khách
+                  </button>
+                  <span>
+                    Kiểm tra bố cục đông khách · dữ liệu vẫn giữ khi vượt giới
+                    hạn render
+                  </span>
+                </div>
                 <div className="panel-body demo-grid">
                   <div>
                     <label>TÊN KHÁCH</label>
@@ -783,6 +819,13 @@ function App() {
                 </div>
               </section>
             </>
+          ) : tab === "visuals" ? (
+            <AssetEditor
+              visuals={state.visuals}
+              authed={authed}
+              onError={setError}
+              onSaved={() => setNotice("Đã đồng bộ hình ảnh sân khấu")}
+            />
           ) : tab === "logs" ? (
             <section className="panel">
               <div className="panel-heading">

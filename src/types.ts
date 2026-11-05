@@ -24,6 +24,7 @@ export type Config = {
   gifts: Record<string, { name: string; action: string; points: number }>;
 };
 export type State = {
+  visuals: Visuals;
   config: Config;
   users: Record<string, Guest>;
   leaders: Guest[];
@@ -47,4 +48,32 @@ export type State = {
     at: number;
     audio_url?: string | null;
   }[];
+};
+export type PoseAsset = {
+  url: string;
+  frames: [number, number, number, number][];
+  fps: number;
+};
+export type CharacterAsset = PoseAsset & {
+  label: string;
+  style: "male" | "female";
+  height: number;
+  foot_x: number;
+  foot_y: number;
+  offset_x: number;
+  offset_y: number;
+  x: number;
+  y: number;
+  poses: Partial<
+    Record<
+      "idle" | "walk" | "celebrate" | "toast" | "dance" | "heart" | "talk",
+      PoseAsset
+    >
+  >;
+};
+export type Visuals = {
+  quality: "low" | "medium" | "high";
+  reduced_effects: boolean;
+  backdrop: PoseAsset;
+  characters: Record<string, CharacterAsset>;
 };

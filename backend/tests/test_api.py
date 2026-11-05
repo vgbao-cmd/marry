@@ -1,7 +1,4 @@
-import os,tempfile,uuid
-os.environ['MARRY_DB']=tempfile.mktemp(suffix='.sqlite3')
-os.environ['MARRY_ADMIN_PASSWORD']='test-password-only'
-os.environ['MARRY_INGEST_TOKEN']='test-ingestion-only'
+import uuid
 from fastapi.testclient import TestClient
 from backend.main import app,game,db,Game
 

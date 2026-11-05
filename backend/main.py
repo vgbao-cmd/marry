@@ -7,6 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 from backend.game import Game, DEFAULT
+from backend.visuals import Visuals, defaults as visual_defaults
+from fastapi import UploadFile, File, Form
+from PIL import Image, UnidentifiedImageError
+import io, warnings
 
 class Event(BaseModel):
  id:str=Field(min_length=1,max_length=160)
@@ -62,6 +66,9 @@ for eid,data in db.execute('SELECT id,data FROM events ORDER BY rowid'):
  game.seen.add(eid); e=json.loads(data)
  if e.get('combo_id'):
   key=(e['user_id'],e['gift_id'],e['combo_id']);game.combos[key]=max(game.combos.get(key,0),e['count'])
+game.s.setdefault('visuals',visual_defaults())
+MEDIA=DB.parent/'media';MEDIA.mkdir(parents=True,exist_ok=True)
+Image.MAX_IMAGE_PIXELS=16_777_216
 # Local-only bootstrap credential, never exposed by an HTTP endpoint.
 password=os.getenv('MARRY_ADMIN_PASSWORD')
 if not password:
@@ -100,6 +107,7 @@ async def authorized(request:Request):
 async def lifespan(app):
  game.say('open');save();yield;save()
 app=FastAPI(title='Marry Live',lifespan=lifespan)
+app.mount('/media',StaticFiles(directory=str(MEDIA)),name='media')
 @app.get('/api/health')
 def health():return {'ok':True,'tts':'browser-fallback','tiktok_connected':False}
 @app.get('/api/state')
@@ -115,6 +123,34 @@ async def login(request:Request,response:Response):
  return {'ok':True}
 @app.get('/api/admin',dependencies=[Depends(authorized)])
 def admin():return {'config':game.s['config'],'logs':game.s['logs'],'users':list(game.s['users'].values()),'queues':game.s['queues']}
+@app.put('/api/visuals',dependencies=[Depends(authorized)])
+async def update_visuals(body:Visuals):
+ # Check local files and atlas bounds before changing the shared renderer.
+ for asset in [body.backdrop,*body.characters.values(),*(p for c in body.characters.values() for p in c.poses.values())]:
+  path=Path('public')/asset.url.lstrip('/') if asset.url.startswith('/assets/') else MEDIA/Path(asset.url).name
+  if not path.is_file():raise HTTPException(422,'Không tìm thấy ảnh: '+asset.url)
+  with Image.open(path) as im:
+   if any(x+w>im.width or y+h>im.height for x,y,w,h in asset.frames):raise HTTPException(422,'Khung sprite vượt ra ngoài ảnh')
+ async with lock:
+  game.s['visuals']=body.model_dump();game.log('Đã cập nhật ảnh sân khấu');save();await broadcast()
+ return {'ok':True}
+@app.post('/api/assets',dependencies=[Depends(authorized)])
+async def upload_asset(file:UploadFile=File(...),rights:bool=Form(False)):
+ if not rights:raise HTTPException(422,'Cần xác nhận quyền sử dụng ảnh')
+ data=await file.read(8*1024*1024+1)
+ if len(data)>8*1024*1024:raise HTTPException(413,'Ảnh tối đa 8 MB')
+ try:
+  with warnings.catch_warnings():
+   warnings.simplefilter('error',Image.DecompressionBombWarning)
+   im=Image.open(io.BytesIO(data))
+   if im.format not in ('PNG','WEBP') or getattr(im,'n_frames',1)!=1:raise ValueError('Chỉ nhận PNG/WebP tĩnh; sprite dùng atlas')
+   if min(im.size)<64 or max(im.size)>4096:raise ValueError('Kích thước ảnh từ 64 đến 4096 px')
+   im.load();im=im.convert('RGBA')
+   lo,hi=im.getchannel('A').getextrema()
+   if lo>200 or hi<128:raise ValueError('Ảnh nhân vật cần nền trong suốt và hình nhìn thấy')
+   im.thumbnail((2048,2048));name=secrets.token_hex(16)+'.webp';im.save(MEDIA/name,'WEBP',quality=90,method=4)
+ except (UnidentifiedImageError,ValueError,OSError,Image.DecompressionBombError,Image.DecompressionBombWarning) as e:raise HTTPException(422,str(e))
+ return {'url':'/media/'+name,'width':im.width,'height':im.height,'foot_x':.5,'foot_y':.98}
 @app.post('/api/logout')
 def logout(request:Request,response:Response):
  sessions.pop(request.cookies.get('marry_session',''),None);response.delete_cookie('marry_session');return {'ok':True}

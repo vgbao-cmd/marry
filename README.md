@@ -1,6 +1,6 @@
 # Marry Live
 
-Game tiệc cưới tương tác 9:16 cho OBS, React + TypeScript + PixiJS 8, FastAPI + WebSocket + SQLite. Repository ban đầu chỉ có README; ứng dụng được khởi tạo mới. Demo không cần tài khoản TikTok hay API key. Sân khấu có 18 khách mẫu, MC vest xanh, cặp đôi mẫu, bánh cưới, tháp ly, hoa và đèn chùm tự vẽ.
+Game tiệc cưới tương tác 9:16 cho OBS, React + TypeScript + PixiJS 8, FastAPI + WebSocket + SQLite. Repository ban đầu chỉ có README; ứng dụng được khởi tạo mới. Demo không cần tài khoản TikTok hay API key. Sân khấu dùng ảnh sảnh cưới chân thực do AI tạo, MC vest xanh, cặp đôi và tám mẫu khách ảnh toàn thân alpha. Có 18 khách dữ liệu mẫu khi database mới; nút **Mời 30 khách** thử cảnh đông người.
 
 ## Chạy trên Windows (PowerShell)
 
@@ -61,7 +61,7 @@ Chỉ bind `0.0.0.0` trong môi trường có kiểm soát truy cập. Khi công
 7. **Giả lập mất kết nối** ngắt WebSocket thật trên trang này. Bấm **Kết nối lại**: tải snapshot chính thức. Các trang stage khác vẫn nhận sự kiện. Reload stage cũng tải snapshot mới; không phát lại hiệu ứng đã hết hạn.
 8. **MC & âm thanh** → Bật âm thanh, chọn giọng nếu thiết bị có tiếng Việt, lưu cấu hình rồi nghe thử. Trang OBS riêng cần được bật âm thanh riêng do chính sách autoplay.
 
-Tất cả người tham gia/điểm được lưu trong SQLite. Snapshot chỉ gửi số khách được chọn theo tương tác gần nhất (mặc định 36, tối đa 48), vai chính và top 5. Vị trí khách ổn định theo ID trong tập đang render; tên rút gọn, bố trí dưới sân khấu. Khi đổi tập hiển thị khách có thể chuyển chỗ. Trên sân khấu, MC và nhân vật là các container đồ họa vector nhiều lớp (tay, đầu, thân, chân), có nội suy đi vào, thở, chào/giơ tay, nhảy và chuyển vai. Đây là đồ họa hoạt hình tự tạo, không phải sprite vẽ tay hay hoạt họa điện ảnh.
+Tất cả người tham gia/điểm được lưu trong SQLite. Snapshot chỉ gửi số khách được chọn theo tương tác gần nhất (mặc định 36, tối đa 48), vai chính và top 5. Vị trí khách ổn định theo ID trong tập đang render; tên rút gọn, bố trí dưới sân khấu. Khi đổi tập hiển thị khách có thể chuyển chỗ. Renderer dùng sprite ảnh toàn thân, chân neo vào sàn, bóng và phản chiếu ngắn, z-order theo vị trí chân. Ảnh không bị kéo giãn/bẻ khớp. Bộ mặc định chỉ có tư thế đứng: vào chỗ bằng nội suy/crossfade; nâng ly/nhảy hiện phát thông báo và hiệu ứng, chỉ đổi pose khi có tài nguyên tương ứng. Xem [nguồn tài nguyên và giới hạn](design/ASSETS.md).
 
 ## OBS
 
@@ -90,7 +90,9 @@ Backend lưu ID sự kiện không giới hạn thời gian trong bảng `events
 
 ## Cấu trúc và kiểm thử
 
-- `src/Stage.tsx`: renderer PixiJS, vector nhân vật/scenery, animation và particle.
+- `src/Stage.tsx`: bố cục/chữ động và chuyển cảnh rèm.
+- `src/photographicRenderer.ts`, `textureLibrary.ts`: PixiJS photo sprites, atlas/pose, z-order, preload/giải phóng texture, pool particle.
+- `src/AssetEditor.tsx`, `backend/visuals.py`: quản trị tài nguyên, căn chân, upload được xác thực và manifest ảnh.
 - `src/main.tsx`: studio, bộ mô phỏng, quản trị và WebSocket sync.
 - `src/audio.ts`: điều phối hàng đợi MC, giọng dự phòng, Web Audio và ducking.
 - `backend/game.py`: luật, vai, điểm, combo, cooldown, mẫu lời dẫn.
@@ -107,11 +109,11 @@ npm run test:e2e
 
 Trên Linux có Chromium hệ thống dùng `/usr/bin/chromium`; có thể ghi đè bằng `CHROMIUM_PATH`. Trên Windows mặc định dùng Chromium của Playwright. Ảnh được tạo ở `artifacts/studio.png`, `stage.png`, `mobile.png`, không commit. E2E dùng mật khẩu bootstrap cục bộ hoặc biến `MARRY_ADMIN_PASSWORD`; chạy trên database demo, không chạy trên phiên live đang phát.
 
-Kết quả thực tế và giới hạn xem [VALIDATION.md](VALIDATION.md). Chưa đo FPS phần cứng người dùng; mục tiêu 60 FPS, không phải kết quả đảm bảo. Particle tái sử dụng qua danh sách giới hạn thời gian, nhưng Graphics được tạo/hủy theo đợt; chưa có object pool đầy đủ. SQLite/event history cần kế hoạch lưu trữ/backup nếu phát dài ngày. Triển khai hiện tại một process Uvicorn; không chạy nhiều worker vì state/WS/auth trong bộ nhớ.
+Kết quả thực tế và giới hạn xem [VALIDATION.md](VALIDATION.md). Chưa đo FPS phần cứng người dùng; mục tiêu 60 FPS, không phải kết quả đảm bảo. Particle có pool dùng lại theo loại và trần số lượng: thấp 35, vừa 85, cao 160; giảm hiệu ứng tối đa 18. Chất lượng thấp giới hạn ticker 30 FPS, vừa/cao 60 FPS mục tiêu; đây không phải số FPS đã đo trên máy người dùng. SQLite/event history cần kế hoạch lưu trữ/backup nếu phát dài ngày. Triển khai hiện tại một process Uvicorn; không chạy nhiều worker vì state/WS/auth trong bộ nhớ.
 
 ## Tài nguyên và giấy phép
 
-Toàn bộ sân khấu, nhân vật và hiệu ứng được vẽ bằng mã trong dự án; không trích logo, watermark, hình hay âm thanh từ video tham khảo. Video chỉ dùng để hiểu bố cục, không được đưa vào sản phẩm. Font tự host qua `@fontsource/be-vietnam-pro` và `@fontsource/playfair-display` (SIL Open Font License 1.1; giấy phép đi kèm các package); biểu tượng `lucide-react` (ISC); PixiJS (MIT). React, Vite, FastAPI và các dependency giữ giấy phép upstream. Không có nhạc/ảnh stock bên ngoài.
+Nền sảnh, rèm và nhân vật ảnh chân thực được tạo riêng bằng OpenAI image_gen; particle, bóng và ánh đèn được tổng hợp bằng renderer. Không trích logo, watermark, hình hay âm thanh từ video tham khảo. Xem [design/ASSETS.md](design/ASSETS.md) để biết nguồn và phạm vi sử dụng. Video chỉ dùng để hiểu bố cục, không được đưa vào sản phẩm. Font tự host qua `@fontsource/be-vietnam-pro` và `@fontsource/playfair-display` (SIL Open Font License 1.1; giấy phép đi kèm các package); biểu tượng `lucide-react` (ISC); PixiJS (MIT). React, Vite, FastAPI và các dependency giữ giấy phép upstream. Không có nhạc/ảnh stock bên ngoài.
 
 
 ## Tích hợp tiếp theo: trạng thái đã kiểm tra
@@ -125,4 +127,17 @@ Cả hai tích hợp phải giữ fallback demo, trạng thái lỗi minh bạch
 
 ## Ảnh chụp demo
 
-[Sân khấu 1080×1920](docs/screenshots/stage.png) · [Trang quản trị](docs/screenshots/admin.png). Ảnh chụp từ ứng dụng đang chạy bằng Chromium, không phải bản thiết kế tĩnh.
+[MC và cặp đôi](docs/screenshots/photographic-couple.png) · [30 khách](docs/screenshots/photographic-30-guests.png) · [Quà/hiệu ứng](docs/screenshots/photographic-gift.png) · [Rèm cưới](docs/screenshots/photographic-curtain.png) · [Quản trị ảnh](docs/screenshots/photographic-admin-assets.png). Ảnh chụp từ ứng dụng đang chạy bằng Chromium, không phải bản thiết kế tĩnh.
+
+
+## Thay ảnh mà không sửa code
+
+Đăng nhập → **Hình ảnh & nhân vật**. Chọn MC/cô dâu/chú rể hoặc mẫu khách. Xác nhận quyền sử dụng rồi tải PNG/WebP trong suốt (tối đa 8 MB, mỗi chiều 64–4096 px). Backend xác minh nội dung/alpha, loại metadata và lưu WebP tối đa 2048 px trong `backend/data/media/`; tên file ngẫu nhiên. Ảnh đục nền hoặc giả đuôi PNG bị từ chối. Không gửi ảnh/avatar người khác khi chưa có quyền.
+
+Xem trước trên nền ô trong suốt, chỉnh chiều cao, điểm bám chân X/Y theo tỉ lệ 0–1, độ lệch, vị trí X/Y cho vai chính. Không có nút kéo giãn ngang/dọc độc lập. Mẫu khách xếp theo vùng/chiều sâu tự động; điểm chân/chiều cao/offset vẫn áp dụng. **Lưu hình ảnh** lưu SQLite và phát snapshot cho mọi stage. **Bỏ chỉnh sửa** quay về cấu hình đang dùng. Có thể thêm mẫu khách nam/nữ.
+
+Trong **Atlas / chuỗi sprite nâng cao**, chọn pose, tải atlas tương ứng, đặt các frame `[[x,y,width,height],...]` có cùng kích thước, chọn FPS, bấm **Áp dụng khung** rồi lưu. Frame tính theo kích thước ảnh sau chuẩn hóa (tối đa 2048 px); thông báo upload API trả width/height. Điểm chân của các pose phải khớp với tư thế đứng. Nếu thiếu pose, renderer giữ ảnh đứng và chỉ phát hiệu ứng/MC.
+
+Chọn **Thấp / Vừa / Cao**, hoặc **Giảm hiệu ứng** rồi lưu. Các mức đổi độ phân giải canvas, FPS mục tiêu, số khách hiển thị tối đa (24/30/40, còn bị giới hạn bởi backend) và giới hạn particle; không thay luật chơi, điểm hay MC. Ảnh gốc không tải lại theo sự kiện livestream. Muốn mã hóa lại bộ mặc định, cài Chromium cho Playwright và chạy `node scripts/build-visual-assets.mjs`; chỉ cần khi thay nguồn thiết kế.
+
+Backup cả SQLite và thư mục `backend/data/media` khi chuyển máy. Ảnh upload không được commit vì thuộc dữ liệu riêng của từng môi trường; bộ ảnh mặc định và nguồn thiết kế được commit trong dự án. Trong chế độ Vite, `/media` được proxy về backend giống `/api`.
