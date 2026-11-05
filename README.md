@@ -121,3 +121,8 @@ Mã hiện tại chỉ có cổng ingest `POST /api/live/events`; **chưa có co
 `TTSProvider` hiện chỉ trả `browser-fallback` và `audio_url: null`; frontend đã có nhánh phát URL audio, hàng đợi và ducking. Chưa có vendor SDK, voice ID hoặc API key. Để dùng giọng MC nam tiếng Việt, cần chọn dịch vụ có giọng phù hợp, xác minh tài liệu hiện hành, đặt credential phía backend, triển khai tạo/cache/phục vụ audio cùng timeout/retry/quota, và nghe thử thực tế. Ví dụ ứng viên **Azure AI Speech** cần tài khoản Azure, Speech resource, key và region; đây là lựa chọn để đánh giá, **chưa được tích hợp hoặc xác minh giọng hiện hành trong dự án**. Chưa có lý do yêu cầu người dùng cung cấp key trước khi chọn dịch vụ. Giọng trình duyệt không cần API key nhưng không bảo đảm giới tính/chất lượng.
 
 Cả hai tích hợp phải giữ fallback demo, trạng thái lỗi minh bạch và không coi sự kiện mô phỏng là kết nối thật. Không nhập mật khẩu TikTok hoặc API key vào chat/URL stage.
+
+
+## Ảnh chụp demo
+
+[Sân khấu 1080×1920](docs/screenshots/stage.png) · [Trang quản trị](docs/screenshots/admin.png). Ảnh chụp từ ứng dụng đang chạy bằng Chromium, không phải bản thiết kế tĩnh.
