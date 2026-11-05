@@ -23,3 +23,10 @@ Atlas được cắt bằng `Texture.frame` tại runtime, nhiều nhân vật d
 - Không biến avatar người xem thành ảnh toàn thân. ID người xem chỉ chọn một mẫu trong bộ khách theo kiểu đã chọn; avatar không phải nguồn ảnh nhân vật.
 - Đổ bóng, phản chiếu chân ngắn, spotlight và particle là các lớp renderer tổng hợp; không phải mô phỏng vật lý hay 3D. Rèm dùng ảnh lụa thật theo phong cách nhiếp ảnh trên hai panel trượt, chữ/countdown là HTML động.
 - Không khẳng định ảnh AI hoàn hảo về giải phẫu/chất liệu hoặc nhân vật là người thật. Nên xem ở độ phân giải phát sóng trước khi dùng trong sự kiện.
+
+
+## Cập nhật sức chứa và bảng tên
+
+Renderer hiện giữ đủ mọi người được backend nhận vào (mặc định 100 khách, ngoài ba vai). Chất lượng thấp không còn cắt bớt xuống 24/30/40 khách như phiên bản đầu. Chỉ giảm độ phân giải/ticker/particle. Vị trí lấy từ số ô lưu trong SQLite, không theo thứ tự tương tác hay tổng số người đang render. Hỗ trợ chen chúc/che nhau và thứ tự theo bàn chân.
+
+Bảng tên được vẽ bằng lớp riêng trên ảnh/hiệu ứng, nền tím/xanh đậm, chữ trắng, có dòng vai cho MC/cô dâu/chú rể. Có thể chồng một phần; không tự giấu người hoặc bảng tên khi đông. Tên dài được rút theo grapheme để không bẻ emoji ghép; đầu/viền được giữ trong khung 1080×1920. Sửa cỡ chữ/kích thước/khoảng cách trên đầu ở Cấu hình tiệc. Các khung ảnh vẫn chia sẻ texture nguồn; actor rời được dùng lại qua pool hữu hạn.

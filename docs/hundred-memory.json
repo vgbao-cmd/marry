@@ -1,0 +1,11 @@
+{
+  "heapBefore": 8168000,
+  "heapAfter": 8945972,
+  "growth": 777972,
+  "churnPairs": 40,
+  "guests": 100,
+  "labels": 103,
+  "textureFrames": 11,
+  "scope": "Chromium JS heap after forced GC, not a GPU/long-duration memory benchmark",
+  "actorPoolLimit": 16
+}

@@ -2096,3 +2096,76 @@ footer i {
   font-size: 10px;
   color: #98977e;
 }
+.attendance-panel {
+  margin-top: 24px;
+}
+.attendance-swap {
+  display: flex;
+  gap: 15px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.attendance-swap label {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+}
+.attendance-swap select {
+  margin-top: 8px;
+}
+.attendance-panel summary {
+  cursor: pointer;
+  color: #69765e;
+  font-size: 11px;
+  padding: 12px 0;
+}
+.attendance-list {
+  max-height: 340px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
+.attendance-list > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-bottom: 1px solid #e9e6d8;
+  font-size: 11px;
+}
+.attendance-list small {
+  font-size: 10px;
+  color: #9f977b;
+}
+.attendance-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attendance-list button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.waiting-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 15px;
+}
+.waiting-list span {
+  padding: 7px 12px;
+  background: #f0eada;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #7b6b4d;
+}
+.demo-crowd {
+  flex-wrap: wrap;
+}
+@media (max-width: 650px) {
+  .attendance-list {
+    grid-template-columns: 1fr;
+  }
+}

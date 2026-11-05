@@ -21,7 +21,9 @@ test("photographic stage, 30 guests, gift, fabric curtain and asset upload", asy
     "true",
   );
   const baseline = await page.request.get("/api/state").then((r) => r.json());
-  await page.request.put('/api/config',{data:{...baseline.config,max_guests:6}});
+  await page.request.put("/api/config", {
+    data: { ...baseline.config, max_guests: 6 },
+  });
   const stage = await context.newPage();
   const stageErrors: string[] = [];
   stage.on("pageerror", (e) => stageErrors.push(e.message));
@@ -36,19 +38,30 @@ test("photographic stage, 30 guests, gift, fabric curtain and asset upload", asy
     "true",
   );
   await stage.waitForTimeout(1800);
-  await stage.screenshot({path:'docs/screenshots/photographic-couple.png'});
-  await page.request.put('/api/config',{data:baseline.config});
-  await page.getByRole('button',{name:'Mời 30 khách',exact:true}).click();
-  await page.request.post('/api/demo/events',{data:{id:crypto.randomUUID(),type:'join',user_id:'mc',name:'Khách tên MC'}});
+  await stage.screenshot({ path: "docs/screenshots/photographic-couple.png" });
+  await page.request.put("/api/config", { data: baseline.config });
+  await page.getByRole("button", { name: "Mời 30 khách", exact: true }).click();
+  await page.request.post("/api/demo/events", {
+    data: {
+      id: crypto.randomUUID(),
+      type: "join",
+      user_id: "mc",
+      name: "Khách tên MC",
+    },
+  });
   await expect
     .poll(() => stage.locator(".canvas-host").getAttribute("data-guests"))
-    .toMatch(/^(3[0-9]|4[0-8])$/);
+    .toMatch(/^(?:[3-9][0-9]|100)$/);
   await stage.waitForTimeout(1800);
 
   await stage.screenshot({
     path: "docs/screenshots/photographic-30-guests.png",
   });
-  expect(Number(await stage.locator(".canvas-host").getAttribute("data-actors"))).toBe(33);
+  expect(
+    Number(await stage.locator(".canvas-host").getAttribute("data-actors")),
+  ).toBe(
+    Number(await stage.locator(".canvas-host").getAttribute("data-guests")) + 3,
+  );
   const loaded = requests.length;
   await page.request.post("/api/demo/events", {
     data: {
@@ -97,13 +110,11 @@ test("photographic stage, 30 guests, gift, fabric curtain and asset upload", asy
     c.getContext("2d")!.drawImage(i, 70, 0, 400, 1024, 0, 0, 400, 1024);
     return c.toDataURL("image/png").split(",")[1];
   });
-  await page
-    .getByLabel("Tải ảnh nhân vật")
-    .setInputFiles({
-      name: "mc-fictional.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(encoded, "base64"),
-    });
+  await page.getByLabel("Tải ảnh nhân vật").setInputFiles({
+    name: "mc-fictional.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(encoded, "base64"),
+  });
   await expect(
     page.getByText("Đã tải ảnh. Kiểm tra chân rồi bấm Lưu hình ảnh."),
   ).toBeVisible();
@@ -116,7 +127,7 @@ test("photographic stage, 30 guests, gift, fabric curtain and asset upload", asy
     "data-ready",
     "true",
   );
-  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: "docs/screenshots/photographic-admin-assets.png",
     fullPage: true,
@@ -139,16 +150,24 @@ test("photographic stage, 30 guests, gift, fabric curtain and asset upload", asy
     "data-ready",
     "true",
   );
-  const low={...baseline.visuals,quality:'low',reduced_effects:true};
-  await page.request.put('/api/visuals',{data:low});
-  await expect(stage.locator('.stage')).toHaveClass(/quality-low/);
-  await expect(stage.locator('.canvas-host')).toHaveAttribute('data-ready','true');
-  await page.request.post('/api/control',{data:{action:'fireworks'}});
+  const low = { ...baseline.visuals, quality: "low", reduced_effects: true };
+  await page.request.put("/api/visuals", { data: low });
+  await expect(stage.locator(".stage")).toHaveClass(/quality-low/);
+  await expect(stage.locator(".canvas-host")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
+  await page.request.post("/api/control", { data: { action: "fireworks" } });
   await stage.waitForTimeout(250);
-  expect(Number(await stage.locator('.canvas-host').getAttribute('data-particles'))).toBeLessThanOrEqual(18);
-  expect(await stage.locator('canvas').getAttribute('width')).toBe('702');
-  await page.request.put('/api/visuals',{data:baseline.visuals});
-  await expect(stage.locator('.canvas-host')).toHaveAttribute('data-ready','true');
+  expect(
+    Number(await stage.locator(".canvas-host").getAttribute("data-particles")),
+  ).toBeLessThanOrEqual(18);
+  expect(await stage.locator("canvas").getAttribute("width")).toBe("702");
+  await page.request.put("/api/visuals", { data: baseline.visuals });
+  await expect(stage.locator(".canvas-host")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   expect(errors).toEqual([]);
   expect(stageErrors).toEqual([]);
 });

@@ -150,15 +150,6 @@ export function Stage({
       <div className="photo-stage-title">
         <small>TRÂN TRỌNG CHÚC PHÚC</small>
         <strong>Lễ Thành Hôn</strong>
-        <span>
-          {state.roles.groom
-            ? state.users[state.roles.groom]?.name
-            : "Chờ chú rể"}{" "}
-          <i>&</i>{" "}
-          {state.roles.bride
-            ? state.users[state.roles.bride]?.name
-            : "Chờ cô dâu"}
-        </span>
       </div>
       {event && captions[event.kind] && (
         <div className="photo-event" key={event.id}>

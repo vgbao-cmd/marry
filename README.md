@@ -2,37 +2,62 @@
 
 Game tiệc cưới tương tác 9:16 cho OBS, React + TypeScript + PixiJS 8, FastAPI + WebSocket + SQLite. Repository ban đầu chỉ có README; ứng dụng được khởi tạo mới. Demo không cần tài khoản TikTok hay API key. Sân khấu dùng ảnh sảnh cưới chân thực do AI tạo, MC vest xanh, cặp đôi và tám mẫu khách ảnh toàn thân alpha. Có 18 khách dữ liệu mẫu khi database mới; nút **Mời 30 khách** thử cảnh đông người.
 
-## Chạy trên Windows (PowerShell)
+## Chạy trên Windows bằng Command Prompt (CMD)
 
-Cài **Node.js 24 LTS** (22 LTS cũng được), **Python 3.12** và Git. Mở PowerShell, tải nhánh chứa ứng dụng (chưa merge vào `main`):
+Không cần VS Code hoặc PowerShell. Cài **Git**, **Node.js 24 LTS** (22 LTS cũng được, có npm) từ https://nodejs.org/ và **Python 3.12** từ https://www.python.org/downloads/windows/. Khi cài Python, chọn Python Launcher và Add python.exe to PATH. Mở CMD mới sau khi cài.
 
-```powershell
+Tải đúng nhánh hiện có mã nguồn:
+
+```cmd
 git clone --branch codex/marry-live-demo --single-branch https://github.com/vgbao-cmd/marry.git
 cd marry
+setup.bat
+run.bat
+```
+
+`setup.bat` và `run.bat` nằm **ngay thư mục gốc `marry`, cùng cấp `package.json`**. Có thể nhấp đúp để chạy. `setup.bat` chỉ chạy lần đầu hoặc sau khi dependency thay đổi; nó tạo `.venv`, cài backend từ `backend\requirements.lock.txt`, chạy `npm ci` và build frontend. Nếu `.env` đã tồn tại, file được giữ nguyên; nếu chưa có, sao chép `.env.example` với các giá trị trống. Không kích hoạt Python bằng PowerShell.
+
+`run.bat` **không cài lại dependency**. Nó mở hai cửa sổ CMD riêng cho backend (8000) và frontend Vite (5173), dùng Python từ `.venv\Scripts\python.exe`. Cả launcher và hai server đều kiểm tra cổng; nếu cổng bị chiếm thì báo lỗi, không tự kết thúc tiến trình khác. Vite có `--strictPort`, không tự chuyển sang cổng khác. Cửa sổ lỗi giữ mở; xem dòng ERROR, khắc phục rồi chạy lại. Kiểm tra cổng trước khi chạy không loại bỏ được race với ứng dụng khác, vì vậy server vẫn tự báo lỗi bind nếu cổng bị chiếm ngay sau đó.
+
+Các URL khi cả hai server đã báo ready:
+
+| Trang | URL |
+|---|---|
+| Quản trị | http://127.0.0.1:5173/admin |
+| Sân khấu OBS | http://127.0.0.1:5173/stage |
+| Demo | http://127.0.0.1:5173/demo |
+| Backend health | http://127.0.0.1:8000/api/health |
+
+Mật khẩu quản trị tự tạo nằm trong `backend\data\admin-password.txt` nếu không đặt `MARRY_ADMIN_PASSWORD`. Mở file trên máy của bạn rồi nhập vào quản trị; không chia sẻ hoặc đưa vào URL. Backend do `run.bat` khởi động đọc `.env` qua `--env-file`; biến đã có trong process được giữ ưu tiên. Frontend không được cấp biến không có tiền tố VITE_. Không đặt credential vào biến VITE_. Dừng từng server bằng Ctrl+C trong cửa sổ tương ứng.
+
+Nếu thư mục nằm ở ổ khác hoặc chứa dấu cách, dùng `cd /d` và dấu ngoặc kép, ví dụ:
+
+```cmd
+cd /d "D:\Wedding Projects\marry"
+setup.bat
+run.bat
+```
+
+Bên trong, các batch dùng `pushd "%~dp0"` nên luôn chạy từ thư mục chứa file, không phụ thuộc thư mục hiện tại hay ổ đĩa đang mở. Không tự xóa `.venv` có sẵn nếu nó không tương thích Windows/Python 3.12: di chuyển/xóa thủ công rồi chạy setup lại sau khi đọc thông báo.
+
+Các lệnh tương đương để chẩn đoán bằng CMD (không cần activate):
+
+```cmd
 node --version
 npm --version
 py -3.12 --version
+.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Nếu đã clone repository, giữ các thay đổi riêng của bạn, sau đó `git fetch origin codex/marry-live-demo` và `git switch codex/marry-live-demo` (tạo nhánh tracking từ `FETCH_HEAD` nếu local chưa có nhánh). Tiếp tục cài đặt và chạy tại thư mục `marry`:
+Mở CMD thứ hai tại thư mục `marry`:
 
-```powershell
-npm ci
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend\requirements.lock.txt
-npm run build
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```cmd
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-Mở trình duyệt tại `http://127.0.0.1:8000/demo` hoặc `/admin`. `/stage` là sân khấu sạch. Lần chạy đầu backend tạo mật khẩu ngẫu nhiên trong **`backend/data/admin-password.txt`** (chỉ đọc cục bộ). Mở file này trên máy của bạn rồi nhập vào ô quản trị. Không chia sẻ file, database hoặc mật khẩu. Có thể đặt `$env:MARRY_ADMIN_PASSWORD` trước khi khởi động thay cho mật khẩu tự tạo. Phiên đăng nhập có hạn 12 giờ và mất khi backend khởi động lại. Demo chỉ yêu cầu mật khẩu quản trị cục bộ để ngăn khách xem stage thay đổi game.
+Lệnh backend thủ công trên không tự đọc `.env`; thêm `--env-file .env` nếu file tồn tại. Backend cũng phục vụ bản build tại `/admin`, `/demo`, `/stage` ở cổng 8000 khi đã build; launcher ưu tiên frontend cổng 5173 để phát triển. OBS Browser Source dùng 1080×1920.
 
-Trong phát triển, giữ backend ở terminal đầu; terminal thứ hai chạy:
-
-```powershell
-npm run dev
-```
-
-Mở `http://127.0.0.1:5173/admin`. Vite proxy `/api` và `/ws` sang backend; hot reload frontend. Sau khi sửa Python, chạy backend với `--reload`. Chạy tại checkout hiện có; mỗi cloud task đã được cô lập, không cần tạo worktree.
+**Giới hạn xác minh:** các batch chưa được chạy trên Windows vì môi trường hiện tại là Linux, không có CMD/Wine. Đã rà cú pháp/CRLF, kiểm tra helper Python với thư mục có dấu cách và cổng đang bị chiếm, chạy lệnh backend/frontend thật và xác minh proxy trên Linux. Không coi đó là kiểm thử CMD bản địa.
 
 ### Linux / cloud
 
@@ -48,7 +73,7 @@ npm run dev
 
 Chỉ bind `0.0.0.0` trong môi trường có kiểm soát truy cập. Khi công khai, đặt reverse proxy HTTPS/WSS; không công khai thư mục `backend/data`. Backend cùng origin với frontend, cookie HttpOnly + SameSite Strict, Secure khi qua HTTPS. Các API thay đổi trạng thái, cấu hình, demo và TTS yêu cầu đăng nhập; mật khẩu có giới hạn số lần thử. Không nhúng thông tin quản trị vào URL stage.
 
-`.env.example` mô tả các biến. Backend **không tự nạp `.env`**: đặt biến trong process/thiết lập môi trường. Không commit giá trị thật. `MARRY_DB` chọn đường dẫn SQLite; mặc định `backend/data/marry.sqlite3`.
+`.env.example` mô tả các biến. `run.bat` nạp `.env` cho backend; khi chạy uvicorn thủ công, thêm `--env-file .env` hoặc đặt biến trong process/thiết lập môi trường. Không commit giá trị thật. `MARRY_DB` chọn đường dẫn SQLite; mặc định `backend/data/marry.sqlite3`.
 
 ## Thử demo
 
@@ -61,11 +86,11 @@ Chỉ bind `0.0.0.0` trong môi trường có kiểm soát truy cập. Khi công
 7. **Giả lập mất kết nối** ngắt WebSocket thật trên trang này. Bấm **Kết nối lại**: tải snapshot chính thức. Các trang stage khác vẫn nhận sự kiện. Reload stage cũng tải snapshot mới; không phát lại hiệu ứng đã hết hạn.
 8. **MC & âm thanh** → Bật âm thanh, chọn giọng nếu thiết bị có tiếng Việt, lưu cấu hình rồi nghe thử. Trang OBS riêng cần được bật âm thanh riêng do chính sách autoplay.
 
-Tất cả người tham gia/điểm được lưu trong SQLite. Snapshot chỉ gửi số khách được chọn theo tương tác gần nhất (mặc định 36, tối đa 48), vai chính và top 5. Vị trí khách ổn định theo ID trong tập đang render; tên rút gọn, bố trí dưới sân khấu. Khi đổi tập hiển thị khách có thể chuyển chỗ. Renderer dùng sprite ảnh toàn thân, chân neo vào sàn, bóng và phản chiếu ngắn, z-order theo vị trí chân. Ảnh không bị kéo giãn/bẻ khớp. Bộ mặc định chỉ có tư thế đứng: vào chỗ bằng nội suy/crossfade; nâng ly/nhảy hiện phát thông báo và hiệu ứng, chỉ đổi pose khi có tài nguyên tương ứng. Xem [nguồn tài nguyên và giới hạn](design/ASSETS.md).
+Tất cả người tham gia/điểm được lưu trong SQLite. Sức chứa mặc định **100 khách ngoài MC/cô dâu/chú rể**; có thể chỉnh 1–200 trong Cấu hình tiệc. Mỗi người đang đứng có số ô lưu trong SQLite. Snapshot gửi đủ người có ô và vai chính; không cắt bớt theo chất lượng hoặc lượt tương tác. Bình luận/quà không làm đổi vị trí. Người vượt sức chứa vào hàng chờ FIFO; quản trị có thể cho khách rời hoặc chọn thay bằng người chờ cụ thể. Reconnect và restart giữ ô theo user ID. Giảm sức chứa sẽ đưa các ô vượt giới hạn vào chờ; tăng lại sẽ mời người chờ vào ô trống. Renderer dùng sprite ảnh toàn thân, chân neo vào sàn, bóng và phản chiếu ngắn, z-order theo vị trí chân. Ảnh không bị kéo giãn/bẻ khớp. Bộ mặc định chỉ có tư thế đứng: vào chỗ bằng nội suy/crossfade; nâng ly/nhảy hiện phát thông báo và hiệu ứng, chỉ đổi pose khi có tài nguyên tương ứng. Xem [nguồn tài nguyên và giới hạn](design/ASSETS.md).
 
 ## OBS
 
-Browser Source → URL `http://127.0.0.1:8000/stage`, **Width 1080, Height 1920**, FPS 60 nếu máy hỗ trợ. Bật điều khiển âm thanh trong OBS, dùng Interact để bấm **Bật âm thanh**. Canvas thiết kế 1080×1920, co theo 9:16; xem trước trong studio có cùng renderer. Không đưa token/mật khẩu vào URL. Trong live, chừa lớp giao diện nền tảng ở vùng rìa và kiểm tra crop thực tế trước khi phát.
+Browser Source → URL `http://127.0.0.1:5173/stage` khi dùng run.bat (hoặc `http://127.0.0.1:8000/stage` với bản build), **Width 1080, Height 1920**, FPS 60 nếu máy hỗ trợ. Bật điều khiển âm thanh trong OBS, dùng Interact để bấm **Bật âm thanh**. Canvas thiết kế 1080×1920, co theo 9:16; xem trước trong studio có cùng renderer. Không đưa token/mật khẩu vào URL. Trong live, chừa lớp giao diện nền tảng ở vùng rìa và kiểm tra crop thực tế trước khi phát.
 
 ## MC và TTS
 
@@ -99,10 +124,10 @@ Backend lưu ID sự kiện không giới hạn thời gian trong bảng `events
 - `backend/main.py`: FastAPI, auth, SQLite, ingest demo/live, snapshot và TTS provider.
 - `backend/tests`: luật và API/WebSocket/persistence. `tests`: kiểm thử Chromium thực và ảnh chụp.
 
-```powershell
+```cmd
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
 npm run build
-# Giữ backend chạy. Lần đầu cài Chromium cho Playwright:
+rem Giu backend chay. Lan dau cai Chromium cho Playwright:
 npx playwright install chromium
 npm run test:e2e
 ```
@@ -138,6 +163,17 @@ Xem trước trên nền ô trong suốt, chỉnh chiều cao, điểm bám châ
 
 Trong **Atlas / chuỗi sprite nâng cao**, chọn pose, tải atlas tương ứng, đặt các frame `[[x,y,width,height],...]` có cùng kích thước, chọn FPS, bấm **Áp dụng khung** rồi lưu. Frame tính theo kích thước ảnh sau chuẩn hóa (tối đa 2048 px); thông báo upload API trả width/height. Điểm chân của các pose phải khớp với tư thế đứng. Nếu thiếu pose, renderer giữ ảnh đứng và chỉ phát hiệu ứng/MC.
 
-Chọn **Thấp / Vừa / Cao**, hoặc **Giảm hiệu ứng** rồi lưu. Các mức đổi độ phân giải canvas, FPS mục tiêu, số khách hiển thị tối đa (24/30/40, còn bị giới hạn bởi backend) và giới hạn particle; không thay luật chơi, điểm hay MC. Ảnh gốc không tải lại theo sự kiện livestream. Muốn mã hóa lại bộ mặc định, cài Chromium cho Playwright và chạy `node scripts/build-visual-assets.mjs`; chỉ cần khi thay nguồn thiết kế.
+Chọn **Thấp / Vừa / Cao**, hoặc **Giảm hiệu ứng** rồi lưu. Các mức đổi độ phân giải canvas, FPS mục tiêu, giới hạn particle (luôn giữ đủ khách đã được nhận vào, không cắt bớt người theo chất lượng); không thay luật chơi, điểm hay MC. Ảnh gốc không tải lại theo sự kiện livestream. Muốn mã hóa lại bộ mặc định, cài Chromium cho Playwright và chạy `node scripts/build-visual-assets.mjs`; chỉ cần khi thay nguồn thiết kế.
 
 Backup cả SQLite và thư mục `backend/data/media` khi chuyển máy. Ảnh upload không được commit vì thuộc dữ liệu riêng của từng môi trường; bộ ảnh mặc định và nguồn thiết kế được commit trong dự án. Trong chế độ Vite, `/media` được proxy về backend giống `/api`.
+
+
+## 100 khách và bảng tên trên đầu
+
+Đăng nhập → Phòng tiệc → **Tạo đủ 100 khách demo**. Nút chỉ bật khi sức chứa ít nhất 100 và chế độ Demo; gọi lại không tạo trùng hoặc đẩy khách hiện có ra ngoài. Mặc định 100 ô, ngoài ba vai chính. Các ô nằm thành nhiều hàng hai bên/lấn vào cụm dưới sân khấu, cùng toạ độ dù số người thay đổi. Cho phép che một phần nhau; không có bộ đẩy va chạm. Hàng sau nhỏ hơn, z-order theo bàn chân.
+
+**Khách mời & danh sách chờ** cho xem ô, cho khách rời và thay người chờ vào. Rời tự mời người chờ đầu tiên vào đúng ô trống; thay cụ thể dùng hai dropdown. Điểm/lịch sử vẫn giữ. Người đã rời không tự quay lại khi bình luận; sự kiện join mới có thể đăng ký lại. Vai được chọn sẽ rời ô khách; vai cũ quay về chờ/ô trống, không xê dịch các khách khác. Chuyển phiên từ bản cũ tự chuyển giới hạn render cũ sang sức chứa 100 đúng một lần; sức chứa chỉnh sau đó được lưu nguyên.
+
+Bảng tên trên lớp Pixi riêng nằm trên tất cả thân người; không ẩn hàng loạt. Bảng có nền tím đậm, chữ trắng, viền sáng; ba vai có dòng vai riêng. Người bình luận/tặng quà nổi bật và được xếp bảng tên trên cùng trong 6 giây. Rút gọn theo cụm Unicode (giữ nguyên emoji ghép), giới hạn chiều rộng và giữ bảng trong mép sân khấu. Cấu hình tiệc có cỡ chữ, chiều rộng, chiều cao và khoảng cách trên đầu. Cho phép bảng chồng một phần trong đám đông.
+
+Giảm tải bằng chất lượng thấp/giảm hiệu ứng: giảm độ phân giải, ticker/particle, **vẫn giữ 100 khách và 103 bảng tên khi đủ ba vai**. Sprite/atlas được dùng lại, pool tối đa 16 actor dự phòng; không cập nhật React theo từng frame. Toàn bộ lịch sử người tham gia và sự kiện vẫn được lưu nên database có thể tăng theo lịch sử; kiểm tra bộ nhớ renderer không có nghĩa dữ liệu lịch sử được xóa.

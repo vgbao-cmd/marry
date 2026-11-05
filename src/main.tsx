@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Stage } from "./Stage";
 import { AssetEditor } from "./AssetEditor";
+import { AttendanceControls } from "./AttendanceControls";
 import { useAudio } from "./audio";
 import type { State, Config } from "./types";
 import "./style.css";
@@ -196,6 +197,13 @@ function App() {
           name: names[i % names.length] + " " + (i + 1),
         });
       setNotice("Đã mời 30 khách vào tiệc");
+    });
+  const fillHundred = () =>
+    run(async () => {
+      const result = await api("/demo/fill");
+      setNotice(
+        `Đã có ${result.seated_count} khách đang đứng; ${result.waiting_count} người chờ`,
+      );
     });
   const copy = () =>
     run(async () => {
@@ -399,11 +407,11 @@ function App() {
                   <div>
                     <small>KHÁCH DỰ TIỆC</small>
                     <b>
-                      {state.guest_count.toString().padStart(2, "0")}
+                      {state.seated_count.toString().padStart(2, "0")}
                       <em>người</em>
                     </b>
                   </div>
-                  <span className="metric-tag">Cùng chung vui</span>
+                  <span className="metric-tag">Chờ {state.waiting_count}</span>
                 </div>
                 <div>
                   <span className="metric-icon">
@@ -676,6 +684,17 @@ function App() {
                 </div>
                 <div className="demo-crowd">
                   <button
+                    className="button primary"
+                    disabled={
+                      !authed ||
+                      state.mode !== "demo" ||
+                      state.config.max_guests < 100
+                    }
+                    onClick={fillHundred}
+                  >
+                    Tạo đủ 100 khách demo
+                  </button>
+                  <button
                     className="button outline"
                     disabled={!authed || state.mode !== "demo"}
                     onClick={addCrowd}
@@ -818,6 +837,12 @@ function App() {
                   </div>
                 </div>
               </section>
+              <AttendanceControls
+                state={state}
+                users={admin?.users || []}
+                authed={authed}
+                onControl={control}
+              />
             </>
           ) : tab === "visuals" ? (
             <AssetEditor
@@ -874,7 +899,14 @@ function App() {
                           ["goal", "Mỗi mốc quà (điểm)"],
                           ["curtain_seconds", "Thời gian rèm (giây)"],
                           ["cooldown", "Cooldown bình luận (giây)"],
-                          ["max_guests", "Giới hạn khách hiển thị"],
+                          [
+                            "max_guests",
+                            "Sức chứa khách mời (không tính cặp đôi/MC)",
+                          ],
+                          ["name_font_size", "Cỡ chữ bảng tên"],
+                          ["name_plate_width", "Chiều rộng bảng tên"],
+                          ["name_plate_height", "Chiều cao bảng tên"],
+                          ["name_head_gap", "Khoảng cách bảng tên trên đầu"],
                         ].map(([key, title]) => (
                           <label key={key}>
                             {title}

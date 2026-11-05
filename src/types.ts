@@ -6,6 +6,7 @@ export type Guest = {
   active: number;
   action: string;
   action_until: number;
+  highlight_until?: number;
 };
 export type Config = {
   title: string;
@@ -14,6 +15,10 @@ export type Config = {
   curtain_seconds: number;
   cooldown: number;
   max_guests: number;
+  name_font_size: number;
+  name_plate_width: number;
+  name_plate_height: number;
+  name_head_gap: number;
   mc_volume: number;
   music_volume: number;
   effect_volume: number;
@@ -36,6 +41,10 @@ export type State = {
   mode: string;
   source_status: string;
   guest_count: number;
+  seated_count: number;
+  waiting_count: number;
+  guest_slots: Record<string, number>;
+  guest_waiting: string[];
   last_event: number | null;
   server_time: number;
   curtain_until: number;

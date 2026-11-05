@@ -8,7 +8,8 @@ import {
   Rectangle,
 } from "pixi.js";
 import { TextureLibrary } from "./textureLibrary";
-import type { CharacterAsset, PoseAsset, State } from "./types";
+import { crowdPosition, fitName } from "./crowdLayout";
+import type { CharacterAsset, Config, PoseAsset, State } from "./types";
 const gold = 0xeac987;
 function glowTexture() {
   const c = document.createElement("canvas");
@@ -43,6 +44,10 @@ type Actor = {
   shadow: Sprite;
   plate: Graphics;
   name: Text;
+  labelRoot: Container;
+  roleText: Text;
+  labelKey: string;
+  highlighted: boolean;
   definition: CharacterAsset;
   pose: string;
   fade: number;
@@ -66,9 +71,12 @@ export class PhotographicRenderer {
   private textures: Texture[] = [];
   private disposed = false;
   private tick = 0;
-  private host?:HTMLElement;
+  private host?: HTMLElement;
   private seen = new Set<string>();
   private bodies = new Container();
+  private labels = new Container();
+  private actorPool: Actor[] = [];
+  private labelConfig!: Config;
   private fx = new Container();
   private lights = new Container();
   private glint!: Texture;
@@ -80,7 +88,8 @@ export class PhotographicRenderer {
     getState: () => State,
     isSpeaking: () => boolean,
   ) {
-    this.host=host;host.dataset.ready="false";
+    this.host = host;
+    host.dataset.ready = "false";
     const initial = getState(),
       v = initial.visuals;
     this.cap = v.reduced_effects
@@ -103,7 +112,7 @@ export class PhotographicRenderer {
       return;
     }
     try {
-      await this.library.load(v);
+      await Promise.all([this.library.load(v), document.fonts.ready]);
     } catch (e) {
       this.destroy();
       throw e;
@@ -145,6 +154,8 @@ export class PhotographicRenderer {
     foreground.height = 192;
     this.app.stage.addChild(foreground);
     this.app.stage.addChild(this.fx);
+    this.labels.sortableChildren = true;
+    this.app.stage.addChild(this.labels);
     // Noninteractive diagnostic numbers are useful for meaningful browser checks.
     host.dataset.renderer = "photographic";
     host.dataset.ready = "true";
@@ -160,15 +171,10 @@ export class PhotographicRenderer {
         offset = sample - Date.now() / 1000;
       }
       const clock = Date.now() / 1000 + offset;
-      const mainIds = Object.values(s.roles);
-      const guestLimit=v.quality==='low'?24:v.quality==='high'?40:30;
-      const guests = Object.values(s.users)
-        .filter((u) => !mainIds.includes(u.id))
-        .sort((a,b)=>b.active-a.active).slice(0,guestLimit)
-        .sort((a, b) => a.id.localeCompare(b.id));
-      const cols = guests.length > 24 ? 8 : 6,
-        rows = Math.ceil(guests.length / cols);
-      const gap = rows > 1 ? 385 / (rows - 1) : 0;
+      this.labelConfig = s.config;
+      const guests = Object.entries(s.guest_slots)
+        .map(([uid, slot]) => ({ u: s.users[uid], slot }))
+        .filter((x) => x.u);
       const active = new Set(["mc"]);
       const defs = v.characters;
       this.place(
@@ -181,58 +187,61 @@ export class PhotographicRenderer {
         isSpeaking() ? "talk" : "idle",
         dt,
         clock,
+        "MC",
       );
       for (const [role, id] of Object.entries(s.roles)) {
         if (!id || !s.users[id]) continue;
-        active.add("user:"+id);
+        active.add("user:" + id);
         const d = defs[role];
         this.place(
-          "user:"+id,
+          "user:" + id,
           d,
           d.x,
           d.y,
           d.height,
           s.users[id].name,
-          s.users[id].action_until>clock?s.users[id].action:"idle",
+          s.users[id].action_until > clock ? s.users[id].action : "idle",
           dt,
           clock,
+          role === "bride" ? "CÔ DÂU" : "CHÚ RỂ",
+          s.users[id].highlight_until || 0,
         );
       }
-      guests.forEach((u, i) => {
+      guests.forEach(({ u, slot }) => {
         const choices = Object.entries(defs).filter(
           ([id, d]) => id.startsWith("guest-") && d.style === u.style,
         );
         const hash = Array.from(u.id).reduce((a, c) => a + c.charCodeAt(0), 0);
-        const d = choices[hash % choices.length]?.[1];
+        const d = choices[Math.floor(hash / 2) % choices.length]?.[1];
         if (!d) return;
-        const row = Math.floor(i / cols),
-          col = Math.floor(i / 2) % (cols / 2),
-          depth = rows <= 1 ? 0.5 : row / (rows - 1),
-          y = 1225 + row * gap;
-        const columnsPerSide = cols / 2;
-        const spacing = columnsPerSide === 4 ? 86 : 115;
-        const x = i % 2 ? 704 + col * spacing : 110 + col * spacing;
-        // Smaller figures at the back; ensure each row leaves room for the next label.
-        const height =
-          Math.min(d.height, rows > 1 ? gap * 0.72 : 185) *
-          (0.78 + depth * 0.22);
-        active.add("user:"+u.id);
+        const point = crowdPosition(slot);
+        active.add("user:" + u.id);
         this.place(
-          "user:"+u.id,
+          "user:" + u.id,
           d,
-          x,
-          y,
-          height,
+          point.x,
+          point.y,
+          point.height * (d.height / 215),
           u.name,
           u.action_until > clock ? u.action : "idle",
           dt,
           clock,
+          "",
+          u.highlight_until || 0,
         );
       });
       for (const [id, a] of this.actors)
         if (!active.has(id)) {
-          a.root.destroy({ children: true });
           this.actors.delete(id);
+          this.bodies.removeChild(a.root);
+          this.labels.removeChild(a.labelRoot);
+          a.root.visible = false;
+          a.labelRoot.visible = false;
+          if (this.actorPool.length < 16) this.actorPool.push(a);
+          else {
+            a.root.destroy({ children: true });
+            a.labelRoot.destroy({ children: true });
+          }
         }
       for (const e of s.effects)
         if (e.until > clock && !this.seen.has(e.id)) {
@@ -265,6 +274,31 @@ export class PhotographicRenderer {
       host.dataset.actors = String(this.actors.size);
       host.dataset.guests = String(guests.length);
       host.dataset.particles = String(this.particles.length);
+      host.dataset.labels = String(this.labels.children.length);
+      host.dataset.pooledActors = String(this.actorPool.length);
+      host.dataset.textureFrames = String(this.library.frameCount);
+      if (this.tick % 15 < dt) {
+        host.dataset.layout = JSON.stringify(
+          Object.fromEntries(
+            guests.map(({ u, slot }) => [u.id, crowdPosition(slot)]),
+          ),
+        );
+        host.dataset.highlighted = JSON.stringify(
+          [...this.actors].filter(([, a]) => a.highlighted).map(([id]) => id),
+        );
+        if (new URLSearchParams(location.search).has("inspect"))
+          host.dataset.labelBounds = JSON.stringify(
+            [...this.actors].map(([id, a]) => ({
+              id,
+              x: a.labelRoot.x,
+              y: a.labelRoot.y,
+              width: a.plate.width,
+              height: a.plate.height,
+              text: a.name.text,
+              role: a.roleText.text,
+            })),
+          );
+      }
     });
   }
   private place(
@@ -277,6 +311,8 @@ export class PhotographicRenderer {
     action: string,
     dt: number,
     time: number,
+    roleLabel = "",
+    highlightUntil = 0,
   ) {
     let a = this.actors.get(id);
     if (a && a.definition !== d) {
@@ -285,7 +321,8 @@ export class PhotographicRenderer {
     }
     const wanted = action === "join" || action === "gift" ? "idle" : action;
     const moving = a
-      ? Math.abs(a.root.x - x - d.offset_x) > 2 || Math.abs(a.root.y - y - d.offset_y) > 2
+      ? Math.abs(a.root.x - x - d.offset_x) > 2 ||
+        Math.abs(a.root.y - y - d.offset_y) > 2
       : id !== "mc";
     const pose: PoseAsset =
       d.poses[moving ? "walk" : (wanted as keyof CharacterAsset["poses"])] ||
@@ -293,6 +330,18 @@ export class PhotographicRenderer {
       d;
     const frame = Math.floor((this.tick / 60) * pose.fps);
     const texture = this.library.texture(pose, frame);
+    if (!a && this.actorPool.length) {
+      a = this.actorPool.pop()!;
+      a.definition = d;
+      a.fade = 0;
+      a.labelKey = "";
+      a.root.visible = true;
+      a.labelRoot.visible = true;
+      a.root.position.set(540, 1660);
+      this.bodies.addChild(a.root);
+      this.labels.addChild(a.labelRoot);
+      this.actors.set(id, a);
+    }
     if (!a) {
       const root = new Container(),
         image = new Sprite(texture),
@@ -321,7 +370,14 @@ export class PhotographicRenderer {
       tag.position.set(0, 10);
       const plate = new Graphics();
       plate.y = 7;
-      root.addChild(plate, tag);
+      const labelRoot = new Container(),
+        roleText = new Text({
+          text: "",
+          style: { fontFamily: "Be Vietnam Pro", fontSize: 12, fill: 0xe4dbff },
+        });
+      roleText.anchor.set(0.5, 0);
+      labelRoot.addChild(plate, tag, roleText);
+      this.labels.addChild(labelRoot);
       root.position.set(id === "mc" ? x : 540, id === "mc" ? y : 1660);
       this.bodies.addChild(root);
       a = {
@@ -332,6 +388,10 @@ export class PhotographicRenderer {
         shadow,
         plate,
         name: tag,
+        labelRoot,
+        roleText,
+        labelKey: "",
+        highlighted: false,
         definition: d,
         pose: "",
         fade: 0,
@@ -354,20 +414,56 @@ export class PhotographicRenderer {
     a.fade = Math.min(1, a.fade + dt * 0.06);
     a.image.alpha = a.fade;
     a.root.alpha = 0.995 + Math.sin(this.tick * 0.018 + x) * 0.005; // Lighting only; no body deformation.
-    const nameLimit = h > 300 ? 20 : 7;
-    const displayName =
-      name.length > nameLimit ? name.slice(0, nameLimit - 1) + "…" : name;
-    const fontSize = h > 300 ? 20 : h<90?13:16;
-    a.name.y=h>300?10:7;a.plate.y=h>300?7:5;
-    if (a.name.text !== displayName || a.name.style.fontSize !== fontSize) {
+    const cfg = this.labelConfig,
+      plateWidth = Math.min(250, cfg.name_plate_width + (roleLabel ? 42 : 0));
+    const fontSize = cfg.name_font_size,
+      plateHeight =
+        Math.max(cfg.name_plate_height, fontSize + 10) + (roleLabel ? 16 : 0);
+    const highlighted = highlightUntil > time;
+    const labelKey = [
+      name,
+      roleLabel,
+      fontSize,
+      plateWidth,
+      plateHeight,
+      highlighted,
+    ].join("|");
+    if (a.labelKey !== labelKey) {
+      a.name.style.fontFamily = [
+        "Be Vietnam Pro",
+        "Segoe UI Emoji",
+        "Noto Color Emoji",
+        "sans-serif",
+      ];
       a.name.style.fontSize = fontSize;
-      a.name.text = displayName;
-      const width = a.name.width + 16;
+      a.name.text = fitName(name, plateWidth - 14, fontSize);
+      a.name.position.set(0, 4);
+      a.roleText.text = roleLabel;
+      a.roleText.style.fontSize = Math.max(10, Math.round(fontSize * 0.64));
+      a.roleText.position.set(0, fontSize + 6);
+      a.plate.position.set(0, 0);
       a.plate
         .clear()
-        .roundRect(-width / 2, 0, width, fontSize + 8, 4)
-        .fill({ color: 0x352417, alpha: 0.65 });
+        .roundRect(-plateWidth / 2, 0, plateWidth, plateHeight, 5)
+        .fill({ color: highlighted ? 0x673d9a : 0x261c53, alpha: 0.93 })
+        .stroke({
+          color: highlighted ? 0xffdf89 : 0xc5b6ed,
+          width: highlighted ? 2 : 1,
+          alpha: 0.9,
+        });
+      a.labelKey = labelKey;
     }
+    const headY = a.root.y - h * (d.foot_y - (roleLabel ? 0.065 : 0.025));
+    a.labelRoot.position.set(
+      Math.max(
+        plateWidth / 2 + 3,
+        Math.min(1080 - plateWidth / 2 - 3, a.root.x),
+      ),
+      Math.max(3, headY - cfg.name_head_gap - plateHeight),
+    );
+    a.labelRoot.alpha = a.fade;
+    a.labelRoot.zIndex = highlighted ? 10000 + highlightUntil : a.root.y;
+    a.highlighted = highlighted;
     a.shadow.width = h * 0.5;
     a.shadow.height = Math.max(9, h * 0.065);
     a.shadow.alpha = a.fade;
@@ -477,7 +573,7 @@ export class PhotographicRenderer {
   destroy() {
     if (this.disposed) return;
     this.disposed = true;
-    if(this.host)this.host.dataset.ready="false";
+    if (this.host) this.host.dataset.ready = "false";
     this.foregroundTexture?.destroy(false);
     this.library.destroy();
     for (const n of this.pool) n.destroy();
@@ -486,6 +582,11 @@ export class PhotographicRenderer {
       this.app.destroy(true, { children: true });
       for (const t of this.textures) t.destroy(true);
     }
+    for (const a of this.actorPool) {
+      a.root.destroy({ children: true });
+      a.labelRoot.destroy({ children: true });
+    }
+    this.actorPool = [];
     this.actors.clear();
     this.particles = [];
   }

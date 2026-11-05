@@ -38,6 +38,9 @@ export class TextureLibrary {
     }
     return t;
   }
+  get frameCount() {
+    return this.frames.size;
+  }
   destroy() {
     this.disposed = true;
     for (const t of this.frames.values()) t.destroy(false);

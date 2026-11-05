@@ -31,7 +31,11 @@ class Config(BaseModel):
  goal:int=Field(ge=1,le=1000000)
  curtain_seconds:int=Field(ge=3,le=60)
  cooldown:float=Field(ge=0,le=60)
- max_guests:int=Field(ge=1,le=48)
+ max_guests:int=Field(default=100,ge=1,le=200)
+ name_font_size:int=Field(default=18,ge=10,le=36)
+ name_plate_width:int=Field(default=108,ge=64,le=220)
+ name_plate_height:int=Field(default=32,ge=24,le=64)
+ name_head_gap:int=Field(default=8,ge=0,le=50)
  mc_volume:float=Field(ge=0,le=1)
  music_volume:float=Field(ge=0,le=1)
  effect_volume:float=Field(ge=0,le=1)
@@ -80,14 +84,10 @@ sessions={};clients=set();lock=asyncio.Lock();tts=TTSProvider();attempts={}
 def save():
  db.execute('INSERT OR REPLACE INTO state VALUES (1,?)',(json.dumps(game.s,ensure_ascii=False),));db.commit()
 def snapshot():
- s={k:v for k,v in game.s.items() if k!='logs'}
- # Keep all records server-side; send a bounded render set and leaderboard.
- ranked=sorted(game.s['users'].values(),key=lambda u:u['active'],reverse=True)
- selected=ranked[:game.s['config']['max_guests']]
- ids={u['id'] for u in selected}
- for uid in game.s['roles'].values():
-  if uid and uid not in ids:selected.append(game.s['users'][uid])
- s['users']={u['id']:u for u in selected};s['guest_count']=len(ranked)
+ s={k:v for k,v in game.s.items() if k not in ('logs','guest_departed','users')}
+ ids=set(game.s['guest_slots'])|{uid for uid in game.s['roles'].values() if uid}
+ s['users']={uid:game.s['users'][uid] for uid in ids}
+ s['guest_count']=len(game.s['users']);s['seated_count']=len(game.s['guest_slots']);s['waiting_count']=len(game.s['guest_waiting'])
  s['leaders']=sorted(game.s['users'].values(),key=lambda u:u['points'],reverse=True)[:5]
  s['server_time']=time.time();return s
 async def broadcast():
@@ -157,14 +157,20 @@ def logout(request:Request,response:Response):
 @app.put('/api/config',dependencies=[Depends(authorized)])
 async def config(body:Config):
  async with lock:
-  game.s['config']=body.model_dump();game.s['milestones']=game.s['total']//body.goal;game.log('Đã lưu cấu hình');save();await broadcast()
+  game.s['config']=body.model_dump();game.sync_attendance();game.s['milestones']=game.s['total']//body.goal;game.log('Đã lưu cấu hình');save();await broadcast()
  return {'ok':True}
 @app.post('/api/control',dependencies=[Depends(authorized)])
 async def control(request:Request):
  body=await request.json();action=body.get('action')
- if action not in {'start','stop','reset','reset_goal','end','next','assign','toast','dance','heart','fireworks','curtain','celebrate','open','mode'}:raise HTTPException(422,'Hành động không hợp lệ')
+ if action not in {'start','stop','reset','reset_goal','end','next','assign','toast','dance','heart','fireworks','curtain','celebrate','open','mode','guest_leave','guest_admit'}:raise HTTPException(422,'Hành động không hợp lệ')
  async with lock:
-  if action=='mode':
+  if action in ('guest_leave','guest_admit'):
+   try:
+    if action=='guest_leave':game.guest_leave(body.get('user_id'))
+    else:game.guest_admit(body.get('user_id'),body.get('replace_user_id'))
+   except ValueError as e:raise HTTPException(422,str(e))
+   game.log('Quản lý khách: '+action)
+  elif action=='mode':
    if body.get('mode') not in ('demo','live'):raise HTTPException(422,'Chế độ không hợp lệ')
    game.s['mode']=body['mode'];game.s['source_status']='waiting_adapter' if body['mode']=='live' else 'demo'
   else:
@@ -179,6 +185,19 @@ async def ingest(e):
   if accepted:
    db.execute('INSERT OR IGNORE INTO events VALUES (?,?)',(e.id,json.dumps(e.model_dump())));save();await broadcast()
   return {'accepted':accepted}
+@app.post('/api/demo/fill',dependencies=[Depends(authorized)])
+async def fill_demo():
+ if game.s['mode']!='demo':raise HTTPException(409,'Hãy chuyển sang Demo trước')
+ async with lock:
+  if not game.s['running']:raise HTTPException(409,'Hãy bắt đầu tiệc trước')
+  names=['Ngọc Hân 🌸','Tuấn Anh','Bảo Ngọc ✨','Minh Châu','Gia Bảo 🎉','Thảo Vy','Quỳnh Anh 💜','Đức Minh','Hoàng Yến','Hải Đăng 🥂','Thanh Trúc','Khánh Linh 💐']
+  i=0
+  while len(game.s['guest_slots'])<min(100,game.s['config']['max_guests']):
+   uid='demo100-'+str(i);i+=1
+   if uid in game.s['users']:continue
+   game.event({'id':'fill-'+secrets.token_hex(16),'type':'join','user_id':uid,'name':names[(i-1)%len(names)]+' '+str(i)})
+  save();await broadcast()
+ return {'seated_count':len(game.s['guest_slots']),'waiting_count':len(game.s['guest_waiting'])}
 @app.post('/api/demo/events',dependencies=[Depends(authorized)])
 async def demo(e:Event):
  if game.s['mode']!='demo':raise HTTPException(409,'Hãy chuyển sang Demo trước')
