@@ -4,7 +4,17 @@ Game tiệc cưới tương tác 9:16 cho OBS, React + TypeScript + PixiJS 8, Fa
 
 ## Chạy trên Windows (PowerShell)
 
-Cài **Node.js 22 hoặc 24 LTS**, **Python 3.12** và Git. Mở PowerShell tại thư mục repository:
+Cài **Node.js 24 LTS** (22 LTS cũng được), **Python 3.12** và Git. Mở PowerShell, tải nhánh chứa ứng dụng (chưa merge vào `main`):
+
+```powershell
+git clone --branch codex/marry-live-demo --single-branch https://github.com/vgbao-cmd/marry.git
+cd marry
+node --version
+npm --version
+py -3.12 --version
+```
+
+Nếu đã clone repository, giữ các thay đổi riêng của bạn, sau đó `git fetch origin codex/marry-live-demo` và `git switch codex/marry-live-demo` (tạo nhánh tracking từ `FETCH_HEAD` nếu local chưa có nhánh). Tiếp tục cài đặt và chạy tại thư mục `marry`:
 
 ```powershell
 npm ci
@@ -102,3 +112,12 @@ Kết quả thực tế và giới hạn xem [VALIDATION.md](VALIDATION.md). Ch�
 ## Tài nguyên và giấy phép
 
 Toàn bộ sân khấu, nhân vật và hiệu ứng được vẽ bằng mã trong dự án; không trích logo, watermark, hình hay âm thanh từ video tham khảo. Video chỉ dùng để hiểu bố cục, không được đưa vào sản phẩm. Font tự host qua `@fontsource/be-vietnam-pro` và `@fontsource/playfair-display` (SIL Open Font License 1.1; giấy phép đi kèm các package); biểu tượng `lucide-react` (ISC); PixiJS (MIT). React, Vite, FastAPI và các dependency giữ giấy phép upstream. Không có nhạc/ảnh stock bên ngoài.
+
+
+## Tích hợp tiếp theo: trạng thái đã kiểm tra
+
+Mã hiện tại chỉ có cổng ingest `POST /api/live/events`; **chưa có connector TikTok** hoặc SDK TikTok trong dependency. `MARRY_INGEST_TOKEN` là khóa nội bộ do người triển khai tự tạo để bảo vệ cổng ingest, **không phải TikTok API key**. Cần chọn nguồn có quyền đọc sự kiện LIVE, xác minh tài liệu/điều kiện tài khoản, viết adapter kết nối, chuẩn hóa ID người dùng/sự kiện/gift/combo, reconnect và đối chiếu quà thực tế. Sau đó thử một LIVE thật và kiểm tra số điểm trước khi dùng phát sóng. Giải pháp không chính thức phải được ghi rõ nếu lựa chọn sau này; TikTok Login API không tự cấp quyền đọc quà/bình luận LIVE.
+
+`TTSProvider` hiện chỉ trả `browser-fallback` và `audio_url: null`; frontend đã có nhánh phát URL audio, hàng đợi và ducking. Chưa có vendor SDK, voice ID hoặc API key. Để dùng giọng MC nam tiếng Việt, cần chọn dịch vụ có giọng phù hợp, xác minh tài liệu hiện hành, đặt credential phía backend, triển khai tạo/cache/phục vụ audio cùng timeout/retry/quota, và nghe thử thực tế. Ví dụ ứng viên **Azure AI Speech** cần tài khoản Azure, Speech resource, key và region; đây là lựa chọn để đánh giá, **chưa được tích hợp hoặc xác minh giọng hiện hành trong dự án**. Chưa có lý do yêu cầu người dùng cung cấp key trước khi chọn dịch vụ. Giọng trình duyệt không cần API key nhưng không bảo đảm giới tính/chất lượng.
+
+Cả hai tích hợp phải giữ fallback demo, trạng thái lỗi minh bạch và không coi sự kiện mô phỏng là kết nối thật. Không nhập mật khẩu TikTok hoặc API key vào chat/URL stage.
