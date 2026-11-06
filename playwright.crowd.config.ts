@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 import base from "./playwright.config";
 const python =
   process.platform === "win32"
-    ? ".venv\\Scripts\\python.exe"
+    ? ".venv\Scripts\python.exe"
     : ".venv/bin/python";
 export default defineConfig({
   ...base,

@@ -85,11 +85,38 @@ test("alpha anchored labels and staggered crowd at 30, 60 and 100", async ({
     .toContain("user:" + id);
   expect((await state()).guest_slots).toEqual(before.guest_slots);
   expect(await host.getAttribute("data-alpha-frames")).toBe(cached);
-  await expect(page.locator(".photo-event")).toBeVisible();
-  const notice = await page.locator(".photo-event").boundingBox();
-  expect(notice!.y + notice!.height).toBeLessThan(500);
-  await page.waitForTimeout(3800);
-  await expect(page.locator(".photo-event")).toHaveCount(0);
+  // Capture the live DOM insertion inside the page, before a short-lived node
+  // can be replaced or expire while a remote locator handle is being resolved.
+  await page.evaluate(() => {
+    const w = window as any;
+    w.noticeMeasurement = null;
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(".photo-event");
+      if (!el?.textContent?.includes("Cùng nâng ly")) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        w.noticeMeasurement = {
+          connected: el.isConnected,
+          y: rect.y,
+          height: rect.height,
+          width: rect.width,
+        };
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  await page.request.post("/api/control", { data: { action: "toast" } });
+  await expect
+    .poll(() => page.evaluate(() => (window as any).noticeMeasurement), {
+      timeout: 7000,
+    })
+    .toMatchObject({ connected: true });
+  const notice = await page.evaluate(() => (window as any).noticeMeasurement);
+  expect(notice.height).toBeGreaterThan(20);
+  expect(notice.width).toBeGreaterThan(100);
+  expect(notice.y + notice.height).toBeLessThan(500);
+  await expect(page.locator(".photo-event")).toHaveCount(0, { timeout: 6500 });
   // Add 300px transparent top padding to a real guest frame. No head-position constant can pass this test.
   const original = (await state()).visuals;
   const png = await page.evaluate(async () => {
@@ -127,11 +154,16 @@ test("alpha anchored labels and staggered crowd at 30, 60 and 100", async ({
     (await page.request.put("/api/visuals", { data: v })).ok(),
   ).toBeTruthy();
   await expect(host).toHaveAttribute("data-ready", "true");
-  await page.waitForTimeout(1200);
-  const padded = JSON.parse(
-    (await host.getAttribute("data-label-bounds"))!,
-  ).filter((x: any) => x.asset === asset.url);
-  expect(padded.length).toBeGreaterThan(0);
+  // Wait for this exact uploaded asset, not a ready flag left by the old scene.
+  const paddedLabels = async () =>
+    JSON.parse((await host.getAttribute("data-label-bounds")) || "[]").filter(
+      (x: any) => x.asset === asset.url,
+    );
+  await expect
+    .poll(async () => (await paddedLabels()).length, { timeout: 15000 })
+    .toBeGreaterThan(0);
+  const padded = await paddedLabels();
+  expect(errors).toEqual([]);
   expect(
     padded.every((x: any) => x.alphaTop >= 300 && Math.abs(x.gap - 6) < 0.01),
   ).toBeTruthy();

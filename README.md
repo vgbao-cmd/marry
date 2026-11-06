@@ -177,3 +177,20 @@ Backup cả SQLite và thư mục `backend/data/media` khi chuyển máy. Ảnh 
 Bảng tên trên lớp Pixi riêng nằm trên tất cả thân người; không ẩn hàng loạt. Bảng có nền tím đậm, chữ trắng, viền sáng; ba vai có dòng vai riêng. Người bình luận/tặng quà nổi bật và được xếp bảng tên trên cùng trong 6 giây. Rút gọn theo cụm Unicode (giữ nguyên emoji ghép), giới hạn chiều rộng và giữ bảng trong mép sân khấu. Cấu hình tiệc có cỡ chữ, chiều rộng, chiều cao và khoảng cách trên đầu. Cho phép bảng chồng một phần trong đám đông.
 
 Giảm tải bằng chất lượng thấp/giảm hiệu ứng: giảm độ phân giải, ticker/particle, **vẫn giữ 100 khách và 103 bảng tên khi đủ ba vai**. Sprite/atlas được dùng lại, pool tối đa 16 actor dự phòng; không cập nhật React theo từng frame. Toàn bộ lịch sử người tham gia và sự kiện vẫn được lưu nên database có thể tăng theo lịch sử; kiểm tra bộ nhớ renderer không có nghĩa dữ liệu lịch sử được xóa.
+
+## Bố cục khách lớn và nhãn bám đầu (crowd v2)
+
+Trong **Cấu hình tiệc**, chỉnh **Kích thước khách (hệ số)**, **Mật độ đám đông**, **Độ rộng lối đi**, cỡ chữ/chiều rộng nhãn và khoảng cách với đầu. Mặc định: chiều cao phần người có alpha khoảng 141–220 px, font 18–21 px theo chiều sâu, biển rộng theo tên (tối đa khoảng 151–176 px) và cách đầu 6 px. Vẫn đủ 100 khách và ba vai; các ô so le không xếp lại khi có tương tác. Thông báo chỉ hiện ngắn trong vùng phía trên đám đông.
+
+Ảnh có padding trong suốt được đo alpha và cache theo frame, không dùng mép trên file làm đỉnh đầu. Có thể đặt Điểm đầu X/Y trong **Hình ảnh & nhân vật** nếu tự đo alpha không phù hợp với pose tay/đạo cụ cao. Để trống sẽ tự đo; anchor đầu/chân tính trong cùng frame.
+
+**Làm mới tên demo** chỉ đổi tên các ID demo biết trước, không đổi vị trí hay tên ID người xem thật. 100 tên mẫu đa dạng được lưu trong `backend/demo_names.json`.
+
+Kiểm chứng có database riêng, không đụng database đang dùng (cần build trước, Chromium đã cài):
+
+```cmd
+npm run build
+npm run test:crowd
+```
+
+Xem [ảnh toàn cảnh/cận cảnh 30–60–100 và kết quả](docs/CROWD_V2.md). Bộ kiểm chứng dùng cổng 8010; nếu cổng bị chiếm, nó báo lỗi thay vì tắt tiến trình khác.

@@ -1,5 +1,12 @@
 # Kiểm chứng Marry Live — nâng cấp ảnh chân thực
 
+## Latest follow-up after workspace recovery
+
+Production build and **25 backend tests passed**. **3 Chromium regression scenarios passed**, plus **1 separate crowd/alpha scenario passed** at 30/60/100 guests, including a 300px transparent top padding test. These tests were executed after recovery checkpoint `6d5fe17` had been committed, pushed and verified. Full evidence, screenshots and limits: [docs/CROWD_V2.md](docs/CROWD_V2.md).
+
+The sections below retain earlier validation history; the older JS heap measurements were not repeated for this follow-up.
+
+
 Môi trường chạy: Linux cloud, Node 24.22.1, Python 3.12.14, Chromium headless (WebGL phần mềm khi cần). Kiểm tra trên ứng dụng thật qua FastAPI/WebSocket. Không có tài khoản TikTok, vendor TTS trả phí hoặc OBS trong kiểm tra.
 
 ## Các kiểm tra đã chạy
