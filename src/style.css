@@ -2169,3 +2169,35 @@ footer i {
     grid-template-columns: 1fr;
   }
 }
+/* Small notification dock above the crowd; never covers guest bodies or captions. */
+.photo-event {
+  top: 19.3%;
+  left: 5%;
+  right: 32%;
+  min-height: 0;
+  max-height: 6.2%;
+  padding: 1.2cqw 1.8cqw;
+  border-radius: 2cqw;
+  text-align: left;
+  overflow: hidden;
+  z-index: 4;
+}
+.photo-event small {
+  display: none;
+}
+.photo-event strong {
+  font-family: "Be Vietnam Pro", sans-serif;
+  font-size: 2.1cqw;
+  margin: 0 0 0.4cqw;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.photo-event span {
+  display: block;
+  font-size: 1.7cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -15,6 +15,9 @@ export type Config = {
   curtain_seconds: number;
   cooldown: number;
   max_guests: number;
+  guest_scale: number;
+  crowd_density: number;
+  aisle_width: number;
   name_font_size: number;
   name_plate_width: number;
   name_plate_height: number;
@@ -67,6 +70,8 @@ export type CharacterAsset = PoseAsset & {
   label: string;
   style: "male" | "female";
   height: number;
+  head_x?: number | null;
+  head_y?: number | null;
   foot_x: number;
   foot_y: number;
   offset_x: number;

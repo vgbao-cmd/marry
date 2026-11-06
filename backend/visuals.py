@@ -18,6 +18,8 @@ class Character(Pose):
  label:str=Field(max_length=80)
  style:Literal['male','female']='male'
  height:float=Field(default=380,ge=50,le=700)
+ head_x:float|None=Field(default=None,ge=0,le=1)
+ head_y:float|None=Field(default=None,ge=0,le=1)
  foot_x:float=Field(default=.5,ge=0,le=1)
  foot_y:float=Field(default=.98,ge=.2,le=1)
  offset_x:float=Field(default=0,ge=-300,le=300)

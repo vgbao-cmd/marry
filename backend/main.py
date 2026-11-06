@@ -32,10 +32,13 @@ class Config(BaseModel):
  curtain_seconds:int=Field(ge=3,le=60)
  cooldown:float=Field(ge=0,le=60)
  max_guests:int=Field(default=100,ge=1,le=200)
- name_font_size:int=Field(default=18,ge=10,le=36)
- name_plate_width:int=Field(default=108,ge=64,le=220)
- name_plate_height:int=Field(default=32,ge=24,le=64)
- name_head_gap:int=Field(default=8,ge=0,le=50)
+ name_font_size:int=Field(default=20,ge=10,le=36)
+ name_plate_width:int=Field(default=168,ge=64,le=220)
+ name_plate_height:int=Field(default=28,ge=24,le=64)
+ name_head_gap:int=Field(default=6,ge=0,le=50)
+ guest_scale:float=Field(default=1,ge=.6,le=1.6)
+ crowd_density:float=Field(default=1,ge=.7,le=1.5)
+ aisle_width:int=Field(default=54,ge=0,le=260)
  mc_volume:float=Field(ge=0,le=1)
  music_volume:float=Field(ge=0,le=1)
  effect_volume:float=Field(ge=0,le=1)
@@ -185,17 +188,26 @@ async def ingest(e):
   if accepted:
    db.execute('INSERT OR IGNORE INTO events VALUES (?,?)',(e.id,json.dumps(e.model_dump())));save();await broadcast()
   return {'accepted':accepted}
+@app.post('/api/demo/names',dependencies=[Depends(authorized)])
+async def refresh_demo_names():
+ if game.s['mode']!='demo':raise HTTPException(409,'Chỉ đổi tên mẫu trong chế độ Demo')
+ names=json.loads(Path(__file__).with_name('demo_names.json').read_text(encoding='utf-8'))
+ async with lock:
+  users=[u for u in game.s['users'].values() if u['id'].startswith(('demo-','demo100-','crowd-')) and u['id'] not in game.s['roles'].values()]
+  for i,u in enumerate(sorted(users,key=lambda u:u['id'])):u['name']=names[i%len(names)]
+  save();await broadcast()
+ return {'updated':len(users)}
 @app.post('/api/demo/fill',dependencies=[Depends(authorized)])
 async def fill_demo():
  if game.s['mode']!='demo':raise HTTPException(409,'Hãy chuyển sang Demo trước')
  async with lock:
   if not game.s['running']:raise HTTPException(409,'Hãy bắt đầu tiệc trước')
-  names=['Ngọc Hân 🌸','Tuấn Anh','Bảo Ngọc ✨','Minh Châu','Gia Bảo 🎉','Thảo Vy','Quỳnh Anh 💜','Đức Minh','Hoàng Yến','Hải Đăng 🥂','Thanh Trúc','Khánh Linh 💐']
+  names=json.loads(Path(__file__).with_name('demo_names.json').read_text(encoding='utf-8'))
   i=0
   while len(game.s['guest_slots'])<min(100,game.s['config']['max_guests']):
    uid='demo100-'+str(i);i+=1
    if uid in game.s['users']:continue
-   game.event({'id':'fill-'+secrets.token_hex(16),'type':'join','user_id':uid,'name':names[(i-1)%len(names)]+' '+str(i)})
+   game.event({'id':'fill-'+secrets.token_hex(16),'type':'join','user_id':uid,'name':names[(i-1)%len(names)]})
   save();await broadcast()
  return {'seated_count':len(game.s['guest_slots']),'waiting_count':len(game.s['guest_waiting'])}
 @app.post('/api/demo/events',dependencies=[Depends(authorized)])

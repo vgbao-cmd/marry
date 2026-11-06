@@ -318,6 +318,27 @@ export function AssetEditor({
                 </select>
               </label>
             </div>
+            <div className="form-grid">
+              {(["head_x", "head_y"] as const).map((key) => (
+                <label key={key}>
+                  {key === "head_x" ? "Điểm đầu X" : "Điểm đầu Y"} · để trống để
+                  tự đo alpha
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={asset[key] ?? ""}
+                    onChange={(e) =>
+                      patch({
+                        [key]:
+                          e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
             <details>
               <summary>Atlas / chuỗi sprite nâng cao</summary>
               <p className="helper">

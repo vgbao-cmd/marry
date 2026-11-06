@@ -3,7 +3,8 @@ import copy, re, time, uuid, random
 DEFAULT = {
  'title': 'Minh Anh & Hoàng Nam', 'announcement': 'Một tiệc cưới, ngàn lời chúc',
  'goal': 100, 'curtain_seconds': 12, 'cooldown': 1, 'max_guests': 100,
- 'name_font_size': 18, 'name_plate_width': 108, 'name_plate_height': 32, 'name_head_gap': 8,
+ 'name_font_size': 20, 'name_plate_width': 168, 'name_plate_height': 28, 'name_head_gap': 6,
+ 'guest_scale': 1.0, 'crowd_density': 1.0, 'aisle_width': 54,
  'mc_volume': .85, 'music_volume': .15, 'effect_volume': .3, 'speech_rate': .95, 'speech_pause': 600, 'voice': '',
  'keywords': {'chúc mừng':'celebrate','chuc mung':'celebrate','dzô':'toast','dô':'toast','do':'toast','nhảy':'dance','nhay':'dance','hôn đi':'heart','hon di':'heart','nam':'male','nữ':'female','nu':'female'},
  'gifts': {'demo-clover':{'name':'Cỏ 4 Lá','action':'bride','points':10}, 'demo-pig':{'name':'Heo May Mắn','action':'groom','points':10}, 'demo-rose':{'name':'Hoa hồng','action':'gift','points':1}, 'demo-firework':{'name':'Pháo hoa','action':'fireworks','points':20}},
@@ -31,7 +32,12 @@ class Game:
   if self.s.get('attendance_version') != 1:
    self.s['config']['max_guests']=100
    self.s.update(attendance_version=1,guest_slots={},guest_waiting=[],guest_departed=[])
-  for key in ('name_font_size','name_plate_width','name_plate_height','name_head_gap'):
+  if self.s.get('crowd_layout_version')!=2:
+   keys=('name_font_size','name_plate_width','name_plate_height','name_head_gap')
+   if tuple(self.s['config'].get(k) for k in keys)==(18,108,32,8):
+    for k in keys:self.s['config'][k]=DEFAULT[k]
+   self.s['crowd_layout_version']=2
+  for key in ('guest_scale','crowd_density','aisle_width','name_font_size','name_plate_width','name_plate_height','name_head_gap'):
    self.s['config'].setdefault(key,DEFAULT[key])
   self.sync_attendance()
   self.seen=set(); self.combos={}; self.cooldowns={}; self.last_mc={}; self.last_line={}

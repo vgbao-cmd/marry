@@ -63,14 +63,16 @@ export function Stage({
       return () => clearTimeout(t);
     }
   }, [remaining, curtainVisible]);
-  const event = state.effects
+  const latestEvent = state.effects
     .slice()
     .reverse()
-    .find(
-      (e) =>
-        e.until > now / 1000 + clock.current &&
-        !["join", "male", "female"].includes(e.kind),
-    );
+    .find((e) => !["join", "male", "female"].includes(e.kind));
+  const event =
+    latestEvent &&
+    Math.min(latestEvent.until, latestEvent.until - 7 + 3.5) >
+      now / 1000 + clock.current
+      ? latestEvent
+      : undefined;
   const captions: Record<string, string> = {
     gift: "Một món quà, ngàn lời chúc",
     toast: "Cùng nâng ly chúc phúc",

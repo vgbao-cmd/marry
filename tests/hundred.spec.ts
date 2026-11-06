@@ -139,7 +139,7 @@ test("100 guests and overhead labels survive interactions, waitlist, reconnect a
           id: crypto.randomUUID(),
           type: "join",
           user_id: leaver,
-          name: "Khách trở lại " + i + " 💜",
+          name: s.users[leaver].name,
         },
       });
       await expect(host).toHaveAttribute("data-guests", "100");

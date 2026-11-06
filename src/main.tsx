@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Stage } from "./Stage";
 import { AssetEditor } from "./AssetEditor";
+import demoNames from "../backend/demo_names.json";
 import { AttendanceControls } from "./AttendanceControls";
 import { useAudio } from "./audio";
 import type { State, Config } from "./types";
@@ -56,20 +57,7 @@ async function api(path: string, body?: unknown, method = "POST") {
   }
   return r.json();
 }
-const names = [
-  "Linh Chi",
-  "Tuấn Anh",
-  "Ngọc Hân",
-  "Đức Minh",
-  "Thảo Vy",
-  "Quỳnh Anh",
-  "Gia Bảo",
-  "Mai Phương",
-  "Hải Đăng",
-  "Khánh Linh",
-  "Bảo Ngọc",
-  "Thanh Tùng",
-];
+const names = demoNames;
 function App() {
   const [state, setState] = useState<State | null>(null),
     [connected, setConnected] = useState(false),
@@ -684,6 +672,18 @@ function App() {
                 </div>
                 <div className="demo-crowd">
                   <button
+                    className="button outline"
+                    disabled={!authed || state.mode !== "demo"}
+                    onClick={() =>
+                      run(async () => {
+                        const r = await api("/demo/names");
+                        setNotice(`Đã làm mới ${r.updated} tên demo`);
+                      })
+                    }
+                  >
+                    Làm mới tên demo
+                  </button>
+                  <button
                     className="button primary"
                     disabled={
                       !authed ||
@@ -903,6 +903,9 @@ function App() {
                             "max_guests",
                             "Sức chứa khách mời (không tính cặp đôi/MC)",
                           ],
+                          ["guest_scale", "Kích thước khách (hệ số)"],
+                          ["crowd_density", "Mật độ đám đông"],
+                          ["aisle_width", "Độ rộng lối đi (px)"],
                           ["name_font_size", "Cỡ chữ bảng tên"],
                           ["name_plate_width", "Chiều rộng bảng tên"],
                           ["name_plate_height", "Chiều cao bảng tên"],
@@ -911,6 +914,11 @@ function App() {
                           <label key={key}>
                             {title}
                             <input
+                              step={
+                                key === "guest_scale" || key === "crowd_density"
+                                  ? 0.05
+                                  : 1
+                              }
                               type={
                                 typeof draft[key as keyof Config] === "number"
                                   ? "number"

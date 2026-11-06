@@ -8,7 +8,7 @@ import {
   Rectangle,
 } from "pixi.js";
 import { TextureLibrary } from "./textureLibrary";
-import { crowdPosition, fitName } from "./crowdLayout";
+import { crowdPosition, fitName, nameWidth } from "./crowdLayout";
 import type { CharacterAsset, Config, PoseAsset, State } from "./types";
 const gold = 0xeac987;
 function glowTexture() {
@@ -51,6 +51,12 @@ type Actor = {
   definition: CharacterAsset;
   pose: string;
   fade: number;
+  plateWidth: number;
+  plateHeight: number;
+  headX: number;
+  headY: number;
+  bodyHeight: number;
+  alphaTop: number;
 };
 type Particle = {
   node: Sprite | Graphics;
@@ -214,7 +220,7 @@ export class PhotographicRenderer {
         const hash = Array.from(u.id).reduce((a, c) => a + c.charCodeAt(0), 0);
         const d = choices[Math.floor(hash / 2) % choices.length]?.[1];
         if (!d) return;
-        const point = crowdPosition(slot);
+        const point = crowdPosition(slot, s.config);
         active.add("user:" + u.id);
         this.place(
           "user:" + u.id,
@@ -228,6 +234,7 @@ export class PhotographicRenderer {
           clock,
           "",
           u.highlight_until || 0,
+          point.depth,
         );
       });
       for (const [id, a] of this.actors)
@@ -277,10 +284,11 @@ export class PhotographicRenderer {
       host.dataset.labels = String(this.labels.children.length);
       host.dataset.pooledActors = String(this.actorPool.length);
       host.dataset.textureFrames = String(this.library.frameCount);
+      host.dataset.alphaFrames = String(this.library.geometryCount);
       if (this.tick % 15 < dt) {
         host.dataset.layout = JSON.stringify(
           Object.fromEntries(
-            guests.map(({ u, slot }) => [u.id, crowdPosition(slot)]),
+            guests.map(({ u, slot }) => [u.id, crowdPosition(slot, s.config)]),
           ),
         );
         host.dataset.highlighted = JSON.stringify(
@@ -296,6 +304,12 @@ export class PhotographicRenderer {
               height: a.plate.height,
               text: a.name.text,
               role: a.roleText.text,
+              headX: a.headX,
+              headY: a.headY,
+              bodyHeight: a.bodyHeight,
+              asset: a.definition.url,
+              alphaTop: a.alphaTop,
+              gap: a.headY - a.labelRoot.y - a.plateHeight,
             })),
           );
       }
@@ -313,6 +327,7 @@ export class PhotographicRenderer {
     time: number,
     roleLabel = "",
     highlightUntil = 0,
+    depth = 1,
   ) {
     let a = this.actors.get(id);
     if (a && a.definition !== d) {
@@ -395,6 +410,12 @@ export class PhotographicRenderer {
         definition: d,
         pose: "",
         fade: 0,
+        plateWidth: 0,
+        plateHeight: 0,
+        headX: 0,
+        headY: 0,
+        bodyHeight: 0,
+        alphaTop: 0,
       };
       this.actors.set(id, a);
     }
@@ -407,7 +428,10 @@ export class PhotographicRenderer {
     a.reflection.texture = texture;
     a.image.anchor.set(d.foot_x, d.foot_y);
     a.reflection.anchor.copyFrom(a.image.anchor);
-    const scale = h / texture.height;
+    const geometry = this.library.geometry(pose, frame);
+    const scale = h / (roleLabel ? texture.height : geometry.height);
+    a.bodyHeight = geometry.height * scale;
+    a.alphaTop = geometry.top;
     a.image.scale.set(scale);
     a.reflection.scale.set(scale, -scale);
     a.reflection.visible = this.app.renderer.resolution >= 1;
@@ -415,19 +439,24 @@ export class PhotographicRenderer {
     a.image.alpha = a.fade;
     a.root.alpha = 0.995 + Math.sin(this.tick * 0.018 + x) * 0.005; // Lighting only; no body deformation.
     const cfg = this.labelConfig,
-      plateWidth = Math.min(250, cfg.name_plate_width + (roleLabel ? 42 : 0));
-    const fontSize = cfg.name_font_size,
+      labelScale = roleLabel ? 1 : 0.9 + depth * 0.15;
+    const maxWidth = Math.min(
+      250,
+      (cfg.name_plate_width + (roleLabel ? 36 : 0)) * labelScale,
+    );
+    const fontSize = Math.round(cfg.name_font_size * labelScale),
       plateHeight =
-        Math.max(cfg.name_plate_height, fontSize + 10) + (roleLabel ? 16 : 0);
-    const highlighted = highlightUntil > time;
-    const labelKey = [
-      name,
-      roleLabel,
-      fontSize,
-      plateWidth,
-      plateHeight,
-      highlighted,
-    ].join("|");
+        Math.max(Math.round(cfg.name_plate_height * labelScale), fontSize + 8) +
+        (roleLabel ? 16 : 0);
+    const highlighted = highlightUntil > time,
+      labelKey = [
+        name,
+        roleLabel,
+        fontSize,
+        maxWidth,
+        plateHeight,
+        highlighted,
+      ].join("|");
     if (a.labelKey !== labelKey) {
       a.name.style.fontFamily = [
         "Be Vietnam Pro",
@@ -436,30 +465,62 @@ export class PhotographicRenderer {
         "sans-serif",
       ];
       a.name.style.fontSize = fontSize;
-      a.name.text = fitName(name, plateWidth - 14, fontSize);
-      a.name.position.set(0, 4);
+      a.name.text = fitName(name, maxWidth - 18, fontSize);
+      a.name.position.set(
+        0,
+        roleLabel ? 3 : Math.max(1, (plateHeight - a.name.height) / 2),
+      );
       a.roleText.text = roleLabel;
       a.roleText.style.fontSize = Math.max(10, Math.round(fontSize * 0.64));
-      a.roleText.position.set(0, fontSize + 6);
+      a.roleText.position.set(0, fontSize + 5);
+      const width = Math.min(
+        maxWidth,
+        Math.max(
+          roleLabel ? 94 : 44,
+          Math.ceil(nameWidth(a.name.text, fontSize)) + 18,
+        ),
+      );
+      const color = highlighted
+        ? 0x694092
+        : roleLabel === "MC"
+          ? 0x163a56
+          : roleLabel === "CÔ DÂU"
+            ? 0x622b55
+            : roleLabel === "CHÚ RỂ"
+              ? 0x23374f
+              : 0x30204f;
       a.plate.position.set(0, 0);
       a.plate
         .clear()
-        .roundRect(-plateWidth / 2, 0, plateWidth, plateHeight, 5)
-        .fill({ color: highlighted ? 0x673d9a : 0x261c53, alpha: 0.93 })
+        .roundRect(-width / 2, 0, width, plateHeight, plateHeight / 2)
+        .fill({ color, alpha: 0.91 })
         .stroke({
-          color: highlighted ? 0xffdf89 : 0xc5b6ed,
+          color: highlighted ? 0xffdfa1 : 0xc8b8ec,
           width: highlighted ? 2 : 1,
-          alpha: 0.9,
+          alpha: 0.85,
         });
+      a.plateWidth = width;
+      a.plateHeight = plateHeight;
       a.labelKey = labelKey;
     }
-    const headY = a.root.y - h * (d.foot_y - (roleLabel ? 0.065 : 0.025));
+    // Sprite anchor is in full-frame coordinates; alpha head is in that SAME frame.
+    // Converting both with the exact same uniform scale keeps labels glued to heads.
+    a.headX =
+      a.root.x +
+      ((d.head_x ?? geometry.headX / texture.width) - d.foot_x) *
+        texture.width *
+        scale;
+    a.headY =
+      a.root.y +
+      ((d.head_y ?? geometry.top / texture.height) - d.foot_y) *
+        texture.height *
+        scale;
     a.labelRoot.position.set(
       Math.max(
-        plateWidth / 2 + 3,
-        Math.min(1080 - plateWidth / 2 - 3, a.root.x),
+        a.plateWidth / 2 + 3,
+        Math.min(1080 - a.plateWidth / 2 - 3, a.headX),
       ),
-      Math.max(3, headY - cfg.name_head_gap - plateHeight),
+      Math.max(3, a.headY - cfg.name_head_gap - a.plateHeight),
     );
     a.labelRoot.alpha = a.fade;
     a.labelRoot.zIndex = highlighted ? 10000 + highlightUntil : a.root.y;
